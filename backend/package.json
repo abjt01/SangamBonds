@@ -1,74 +1,58 @@
 {
-  "name": "sangambonds",
-  "version": "1.0.0",
-  "description": "Corporate Bond Trading Platform for India - Improving Market Liquidity Through Fractional Ownership and Tokenization",
-  "main": "backend/server.js",
+  "name": "sangambonds-backend",
+  "version": "2.0.0",
+  "description": "SangamBonds Backend API Server",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js",
-    "test": "jest --coverage",
-    "test:watch": "jest --watch",
-    "frontend": "echo \"Open frontend/index.html in your browser or use Live Server\"",
-    "seed": "node scripts/seedDatabase.js",
-    "migrate": "node scripts/migrate.js",
-    "postinstall": "echo \"Setup complete! Run 'npm run dev' to start the server\"",
-    "lint": "eslint backend/ --ext .js",
-    "lint:fix": "eslint backend/ --ext .js --fix",
-    "production": "NODE_ENV=production node backend/server.js"
+    "start": "NODE_ENV=production PORT=3001 node server.js",
+    "dev": "NODE_ENV=development PORT=3001 nodemon server.js",
+    "test": "jest --detectOpenHandles",
+    "test:watch": "jest --watch --detectOpenHandles",
+    "lint": "eslint . --ext .js --ignore-path .eslintignore",
+    "lint:fix": "eslint . --ext .js --fix --ignore-path .eslintignore",
+    "format": "prettier --write \"**/*.js\"",
+    "seed": "node utils/seedDatabase.js"
   },
   "keywords": [
+    "api",
+    "backend",
+    "nodejs",
+    "express",
+    "mongodb",
     "bonds",
-    "trading", 
-    "fintech",
-    "tokenization",
-    "india",
-    "corporate-bonds",
-    "blockchain",
-    "fractional-ownership",
-    "liquidity",
-    "fixed-income",
-    "investment",
-    "defi",
-    "securities"
+    "trading"
   ],
   "author": "SangamBonds Team",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/sangambonds/platform.git"
-  },
-  "bugs": {
-    "url": "https://github.com/sangambonds/platform/issues"
-  },
-  "homepage": "https://sangambonds.com",
   "dependencies": {
     "express": "^4.18.2",
-    "mongoose": "^7.5.0",
+    "mongoose": "^7.5.4",
     "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^6.10.0",
+    "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.3.1",
-    "express-rate-limit": "^6.10.0",
-    "helmet": "^7.0.0",
-    "compression": "^1.7.4",
-    "morgan": "^1.10.0",
-    "express-validator": "^7.0.1",
-    "multer": "^1.4.5",
-    "sharp": "^0.32.5",
-    "nodemailer": "^6.9.4",
-    "cron": "^2.4.4",
-    "redis": "^4.6.8",
+    "multer": "1.4.4",
+    "nodemailer": "^6.9.5",
     "socket.io": "^4.7.2",
-    "winston": "^3.10.0"
+    "winston": "^3.10.0",
+    "morgan": "^1.10.0",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.0",
+    "validator": "^13.11.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "hpp": "^0.2.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "jest": "^29.6.2",
+    "jest": "^29.7.0",
     "supertest": "^6.3.3",
     "eslint": "^8.47.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.28.1",
-    "@types/jest": "^29.5.4"
+    "prettier": "^3.0.2"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -77,30 +61,9 @@
   "jest": {
     "testEnvironment": "node",
     "collectCoverageFrom": [
-      "backend/**/*.js",
-      "!backend/node_modules/**"
+      "**/*.js",
+      "!node_modules/**"
     ],
-    "coverageDirectory": "coverage",
-    "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/*.test.js"
-    ]
-  },
-  "eslintConfig": {
-    "extends": ["airbnb-base"],
-    "env": {
-      "node": true,
-      "jest": true
-    },
-    "rules": {
-      "no-console": "off",
-      "consistent-return": "off"
-    }
-  },
-  "nodemonConfig": {
-    "watch": ["backend/"],
-    "ext": "js,json",
-    "ignore": ["backend/node_modules/", "backend/logs/"],
-    "delay": 1000
+    "testTimeout": 30000
   }
 }

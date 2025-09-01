@@ -1,289 +1,365 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-    orderId: {
-        type: String,
-        unique: true,
-        default: function() {
-            return 'ORD_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5).toUpperCase();
-        }
+  orderId: {
+    type: String,
+    unique: true,
+    default: function() {
+      return 'ORD_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5).toUpperCase();
+    }
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'User ID is required']
+  },
+  bondId: {
+    type: String,
+    required: [true, 'Bond ID is required'],
+    trim: true
+  },
+  bondName: {
+    type: String,
+    required: [true, 'Bond name is required']
+  },
+  
+  // Order Details
+  orderType: {
+    type: String,
+    enum: ['buy', 'sell'],
+    required: [true, 'Order type is required']
+  },
+  orderSubType: {
+    type: String,
+    enum: ['market', 'limit', 'stop_loss'],
+    default: 'market'
+  },
+  
+  // Quantities and Prices
+  quantity: {
+    type: Number,
+    required: [true, 'Quantity is required'],
+    min: [1, 'Quantity must be at least 1']
+  },
+  price: {
+    type: Number,
+    required: [true, 'Price is required'],
+    min: [0, 'Price cannot be negative']
+  },
+  stopPrice: {
+    type: Number,
+    default: null,
+    min: [0, 'Stop price cannot be negative']
+  },
+  totalValue: {
+    type: Number,
+    default: function() {
+      return this.quantity * this.price;
+    }
+  },
+  
+  // Execution Details
+  filledQuantity: {
+    type: Number,
+    default: 0,
+    min: [0, 'Filled quantity cannot be negative']
+  },
+  remainingQuantity: {
+    type: Number,
+    default: function() {
+      return this.quantity;
+    }
+  },
+  averageFilledPrice: {
+    type: Number,
+    default: 0
+  },
+  executedValue: {
+    type: Number,
+    default: 0
+  },
+  
+  // Status and Timing
+  status: {
+    type: String,
+    enum: ['pending', 'open', 'partial', 'filled', 'cancelled', 'expired', 'rejected'],
+    default: 'pending'
+  },
+  
+  // Timestamps
+  placedAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  expiresAt: {
+    type: Date,
+    default: function() {
+      // Orders expire after 24 hours by default
+      return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+  },
+  filledAt: {
+    type: Date,
+    default: null
+  },
+  cancelledAt: {
+    type: Date,
+    default: null
+  },
+  
+  // Order Configuration
+  timeInForce: {
+    type: String,
+    enum: ['GTC', 'IOC', 'FOK', 'DAY'], // Good Till Cancelled, Immediate or Cancel, Fill or Kill, Day
+    default: 'GTC'
+  },
+  allowPartialFill: {
+    type: Boolean,
+    default: true
+  },
+  minimumFillQuantity: {
+    type: Number,
+    default: 1,
+    min: [1, 'Minimum fill quantity must be at least 1']
+  },
+  
+  // Trading Session
+  tradingSession: {
+    type: String,
+    enum: ['pre_market', 'regular', 'post_market'],
+    default: 'regular'
+  },
+  
+  // Source and Device Info
+  orderSource: {
+    type: String,
+    enum: ['web', 'mobile', 'api'],
+    default: 'web'
+  },
+  deviceInfo: {
+    userAgent: String,
+    ipAddress: String,
+    platform: String
+  },
+  
+  // Execution History
+  executions: [{
+    executionId: {
+      type: String,
+      required: true
     },
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: [true, 'User ID is required']
-    },
-    bondId: {
-        type: String,
-        required: [true, 'Bond ID is required'],
-        trim: true
-    },
-    bondName: {
-        type: String,
-        required: [true, 'Bond name is required'],
-        trim: true
-    },
-    orderType: {
-        type: String,
-        enum: ['buy', 'sell'],
-        required: [true, 'Order type is required']
-    },
-    orderSubType: {
-        type: String,
-        enum: ['market', 'limit', 'stop_loss'],
-        default: 'market'
-    },
-    amount: {
-        type: Number,
-        required: [true, 'Amount (tokens) is required'],
-        min: 1
+    quantity: {
+      type: Number,
+      required: true,
+      min: 0
     },
     price: {
-        type: Number,
-        required: [true, 'Price per token is required'],
-        min: 0
+      type: Number,
+      required: true,
+      min: 0
     },
-    totalValue: {
-        type: Number,
-        default: function() {
-            return this.amount * this.price;
-        }
+    executedAt: {
+      type: Date,
+      default: Date.now
     },
-    status: {
-        type: String,
-        enum: ['open', 'partial', 'filled', 'cancelled', 'expired'],
-        default: 'open'
-    },
-    filledAmount: {
-        type: Number,
-        default: 0,
-        min: 0
-    },
-    remainingAmount: {
-        type: Number,
-        default: function() {
-            return this.amount;
-        }
-    },
-    averageFilledPrice: {
-        type: Number,
-        default: 0
-    },
-    executedValue: {
-        type: Number,
-        default: 0
-    },
-    // Timestamps
-    placedAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    },
-    expiresAt: {
-        type: Date,
-        default: function() {
-            // Orders expire after 24 hours by default
-            return new Date(Date.now() + 24 * 60 * 60 * 1000);
-        }
-    },
-    // Trading session info
-    tradingSession: {
-        type: String,
-        enum: ['pre_market', 'regular', 'post_market'],
-        default: 'regular'
-    },
-    // Order source
-    source: {
-        type: String,
-        enum: ['web', 'mobile', 'api'],
-        default: 'web'
-    },
-    // Special order flags
-    isGoodTillCancelled: {
-        type: Boolean,
-        default: false
-    },
-    isDayOrder: {
-        type: Boolean,
-        default: true
-    },
-    // Partial fill configuration
-    allowPartialFill: {
-        type: Boolean,
-        default: true
-    },
-    minimumFillAmount: {
-        type: Number,
-        default: 1,
-        min: 1
-    },
-    // Stop loss specific fields
-    stopPrice: {
-        type: Number,
-        default: null
-    },
-    triggerPrice: {
-        type: Number,
-        default: null
-    },
-    // Execution details
-    executionDetails: [{
-        executionId: {
-            type: String,
-            required: true
-        },
-        executedAmount: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        executedPrice: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        executedAt: {
-            type: Date,
-            default: Date.now
-        },
-        counterpartyOrderId: {
-            type: String,
-            default: null
-        }
-    }],
-    // Cancellation details
-    cancellationReason: {
-        type: String,
-        enum: ['user_requested', 'insufficient_balance', 'expired', 'system_error', 'market_closed'],
-        default: null
-    },
-    cancelledAt: {
-        type: Date,
-        default: null
-    },
-    cancelledBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        default: null
+    counterpartyOrderId: String,
+    fees: {
+      brokerage: { type: Number, default: 0 },
+      gst: { type: Number, default: 0 },
+      stt: { type: Number, default: 0 },
+      stampDuty: { type: Number, default: 0 }
     }
+  }],
+  
+  // Fees and Charges
+  totalFees: {
+    brokerage: { type: Number, default: 0 },
+    gst: { type: Number, default: 0 },
+    stt: { type: Number, default: 0 },
+    stampDuty: { type: Number, default: 0 },
+    total: { type: Number, default: 0 }
+  },
+  
+  // Cancellation Details
+  cancellationReason: {
+    type: String,
+    enum: ['user_requested', 'insufficient_balance', 'insufficient_tokens', 'expired', 'system_error', 'market_closed'],
+    default: null
+  },
+  cancelledBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  
+  // Notes and Comments
+  notes: {
+    type: String,
+    maxlength: [500, 'Notes cannot exceed 500 characters']
+  }
 }, {
-    timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Virtual for order completion percentage
+// Virtual fields
 orderSchema.virtual('completionPercentage').get(function() {
-    return this.amount > 0 ? (this.filledAmount / this.amount) * 100 : 0;
+  return this.quantity > 0 ? (this.filledQuantity / this.quantity) * 100 : 0;
 });
 
-// Virtual for remaining value
-orderSchema.virtual('remainingValue').get(function() {
-    return this.remainingAmount * this.price;
+orderSchema.virtual('isActive').get(function() {
+  return ['open', 'partial'].includes(this.status);
 });
 
-// Virtual for profit/loss (for sell orders)
-orderSchema.virtual('profitLoss').get(function() {
-    if (this.orderType === 'sell' && this.filledAmount > 0) {
-        // This would require the original buy price, simplified here
-        return (this.averageFilledPrice - this.price) * this.filledAmount;
-    }
-    return 0;
+orderSchema.virtual('isCompleted').get(function() {
+  return this.status === 'filled';
 });
 
-// Method to update order on partial/full execution
-orderSchema.methods.executeOrder = function(executedAmount, executedPrice, counterpartyOrderId = null) {
-    // Add execution detail
-    this.executionDetails.push({
-        executionId: 'EXE_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5).toUpperCase(),
-        executedAmount: executedAmount,
-        executedPrice: executedPrice,
-        executedAt: new Date(),
-        counterpartyOrderId: counterpartyOrderId
-    });
-
-    // Update order amounts and averages
-    const previousExecutedValue = this.filledAmount * this.averageFilledPrice;
-    const newExecutedValue = executedAmount * executedPrice;
-    
-    this.filledAmount += executedAmount;
-    this.remainingAmount -= executedAmount;
-    this.executedValue += newExecutedValue;
-    
-    // Calculate weighted average filled price
-    this.averageFilledPrice = (previousExecutedValue + newExecutedValue) / this.filledAmount;
-    
-    // Update status
-    if (this.remainingAmount <= 0) {
-        this.status = 'filled';
-    } else if (this.filledAmount > 0) {
-        this.status = 'partial';
-    }
-    
-    this.updatedAt = new Date();
-    
-    return this;
-};
-
-// Method to cancel order
-orderSchema.methods.cancelOrder = function(reason = 'user_requested', cancelledBy = null) {
-    if (this.status === 'open' || this.status === 'partial') {
-        this.status = 'cancelled';
-        this.cancellationReason = reason;
-        this.cancelledAt = new Date();
-        this.cancelledBy = cancelledBy;
-        this.updatedAt = new Date();
-    }
-    return this;
-};
-
-// Method to check if order is active
-orderSchema.methods.isActive = function() {
-    return this.status === 'open' || this.status === 'partial';
-};
-
-// Method to check if order is expired
-orderSchema.methods.isExpired = function() {
-    return new Date() > this.expiresAt && !this.isGoodTillCancelled;
-};
-
-// Method to get order priority for matching (price-time priority)
-orderSchema.methods.getPriority = function() {
-    return {
-        price: this.orderType === 'buy' ? -this.price : this.price, // Higher buy price = higher priority, Lower sell price = higher priority
-        time: this.placedAt.getTime() // Earlier time = higher priority
-    };
-};
-
-// Static method to find matching orders
-orderSchema.statics.findMatchingOrders = function(bondId, orderType) {
-    const oppositeType = orderType === 'buy' ? 'sell' : 'buy';
-    const sortOrder = orderType === 'buy' ? { price: 1, placedAt: 1 } : { price: -1, placedAt: 1 };
-    
-    return this.find({
-        bondId: bondId,
-        orderType: oppositeType,
-        status: { $in: ['open', 'partial'] },
-        expiresAt: { $gt: new Date() }
-    }).sort(sortOrder);
-};
-
-// Pre-save middleware to update timestamps
-orderSchema.pre('save', function(next) {
-    this.updatedAt = new Date();
-    if (this.isModified() && this.status !== 'open') {
-        // Order has been modified, update remaining amount
-        this.remainingAmount = this.amount - this.filledAmount;
-    }
-    next();
+orderSchema.virtual('netAmount').get(function() {
+  return this.executedValue - this.totalFees.total;
 });
 
-// Index for efficient queries
+// Indexes for better performance
 orderSchema.index({ userId: 1, status: 1 });
 orderSchema.index({ bondId: 1, orderType: 1, status: 1 });
 orderSchema.index({ status: 1, expiresAt: 1 });
-orderSchema.index({ placedAt: 1 });
-orderSchema.index({ bondId: 1, price: 1, placedAt: 1 }); // For matching algorithm
+orderSchema.index({ placedAt: -1 });
+orderSchema.index({ price: 1, placedAt: 1 }); // For order book sorting
+
+// Pre-save middleware
+orderSchema.pre('save', function(next) {
+  // Update remaining quantity
+  this.remainingQuantity = this.quantity - this.filledQuantity;
+  
+  // Update status based on filled quantity
+  if (this.filledQuantity === 0 && this.status === 'pending') {
+    this.status = 'open';
+  } else if (this.filledQuantity > 0 && this.filledQuantity < this.quantity) {
+    this.status = 'partial';
+  } else if (this.filledQuantity >= this.quantity) {
+    this.status = 'filled';
+    this.filledAt = new Date();
+  }
+  
+  // Calculate total fees
+  this.totalFees.total = this.totalFees.brokerage + this.totalFees.gst + 
+                        this.totalFees.stt + this.totalFees.stampDuty;
+  
+  // Update timestamp
+  this.updatedAt = new Date();
+  
+  next();
+});
+
+// Instance methods
+orderSchema.methods.executePartial = function(quantity, price, counterpartyOrderId = null) {
+  const executionId = 'EXE_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5).toUpperCase();
+  
+  // Calculate fees for this execution
+  const executionValue = quantity * price;
+  const brokerage = executionValue * 0.001; // 0.1%
+  const gst = brokerage * 0.18; // 18% GST on brokerage
+  const stt = executionValue * 0.001; // 0.1% STT
+  const stampDuty = executionValue * 0.00015; // 0.015% stamp duty
+  
+  // Add execution record
+  this.executions.push({
+    executionId,
+    quantity,
+    price,
+    executedAt: new Date(),
+    counterpartyOrderId,
+    fees: { brokerage, gst, stt, stampDuty }
+  });
+  
+  // Update order totals
+  const previousExecutedValue = this.filledQuantity * this.averageFilledPrice;
+  const newExecutedValue = quantity * price;
+  
+  this.filledQuantity += quantity;
+  this.executedValue += newExecutedValue;
+  
+  // Calculate weighted average price
+  if (this.filledQuantity > 0) {
+    this.averageFilledPrice = (previousExecutedValue + newExecutedValue) / this.filledQuantity;
+  }
+  
+  // Update total fees
+  this.totalFees.brokerage += brokerage;
+  this.totalFees.gst += gst;
+  this.totalFees.stt += stt;
+  this.totalFees.stampDuty += stampDuty;
+  
+  return this.save();
+};
+
+orderSchema.methods.cancel = function(reason = 'user_requested', cancelledBy = null) {
+  if (['open', 'partial'].includes(this.status)) {
+    this.status = 'cancelled';
+    this.cancellationReason = reason;
+    this.cancelledBy = cancelledBy;
+    this.cancelledAt = new Date();
+    return this.save();
+  }
+  throw new Error('Order cannot be cancelled in current status');
+};
+
+orderSchema.methods.expire = function() {
+  if (['open', 'partial'].includes(this.status)) {
+    this.status = 'expired';
+    this.cancellationReason = 'expired';
+    return this.save();
+  }
+  return this;
+};
+
+// Static methods
+orderSchema.statics.getOrderBook = function(bondId, depth = 10) {
+  const buyOrders = this.find({
+    bondId,
+    orderType: 'buy',
+    status: { $in: ['open', 'partial'] },
+    expiresAt: { $gt: new Date() }
+  })
+  .sort({ price: -1, placedAt: 1 })
+  .limit(depth)
+  .select('price remainingQuantity placedAt');
+
+  const sellOrders = this.find({
+    bondId,
+    orderType: 'sell',
+    status: { $in: ['open', 'partial'] },
+    expiresAt: { $gt: new Date() }
+  })
+  .sort({ price: 1, placedAt: 1 })
+  .limit(depth)
+  .select('price remainingQuantity placedAt');
+
+  return Promise.all([buyOrders, sellOrders]).then(([bids, asks]) => ({
+    bondId,
+    bids,
+    asks,
+    timestamp: new Date()
+  }));
+};
+
+orderSchema.statics.getExpiredOrders = function() {
+  return this.find({
+    status: { $in: ['open', 'partial'] },
+    expiresAt: { $lte: new Date() }
+  });
+};
+
+orderSchema.statics.getUserOrderHistory = function(userId, limit = 50) {
+  return this.find({ userId })
+    .sort({ placedAt: -1 })
+    .limit(limit)
+    .populate('userId', 'name email');
+};
 
 module.exports = mongoose.model('Order', orderSchema);
