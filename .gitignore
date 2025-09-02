@@ -66,6 +66,8 @@ uploads/
 *.backup
 *.bak
 
+Readme_setup.md
+
 # Docker
 .docker/
 
