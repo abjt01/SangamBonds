@@ -48,7 +48,6 @@ const orderSchema = new mongoose.Schema({
   },
   stopPrice: {
     type: Number,
-    default: null,
     min: [0, 'Stop price cannot be negative']
   },
   totalValue: {
@@ -98,23 +97,20 @@ const orderSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     default: function() {
-      // Orders expire after 24 hours by default
       return new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
   },
   filledAt: {
-    type: Date,
-    default: null
+    type: Date
   },
   cancelledAt: {
-    type: Date,
-    default: null
+    type: Date
   },
   
   // Order Configuration
   timeInForce: {
     type: String,
-    enum: ['GTC', 'IOC', 'FOK', 'DAY'], // Good Till Cancelled, Immediate or Cancel, Fill or Kill, Day
+    enum: ['GTC', 'IOC', 'FOK', 'DAY'],
     default: 'GTC'
   },
   allowPartialFill: {
@@ -184,16 +180,16 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, default: 0 }
   },
   
-  // Cancellation Details
+  // Cancellation Details - FIX: Remove default: null and make it optional
   cancellationReason: {
     type: String,
-    enum: ['user_requested', 'insufficient_balance', 'insufficient_tokens', 'expired', 'system_error', 'market_closed'],
-    default: null
+    enum: ['user_requested', 'insufficient_balance', 'insufficient_tokens', 'expired', 'system_error', 'market_closed']
+    // Remove default: null - let it be undefined by default
   },
   cancelledBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    ref: 'User'
+    // Remove default: null
   },
   
   // Notes and Comments
@@ -229,7 +225,7 @@ orderSchema.index({ userId: 1, status: 1 });
 orderSchema.index({ bondId: 1, orderType: 1, status: 1 });
 orderSchema.index({ status: 1, expiresAt: 1 });
 orderSchema.index({ placedAt: -1 });
-orderSchema.index({ price: 1, placedAt: 1 }); // For order book sorting
+orderSchema.index({ price: 1, placedAt: 1 });
 
 // Pre-save middleware
 orderSchema.pre('save', function(next) {
@@ -257,7 +253,7 @@ orderSchema.pre('save', function(next) {
 });
 
 // Instance methods
-orderSchema.methods.executePartial = function(quantity, price, counterpartyOrderId = null) {
+orderSchema.methods.executePartial = function(quantity, price, counterpartyOrderId) {
   const executionId = 'EXE_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5).toUpperCase();
   
   // Calculate fees for this execution
@@ -358,8 +354,7 @@ orderSchema.statics.getExpiredOrders = function() {
 orderSchema.statics.getUserOrderHistory = function(userId, limit = 50) {
   return this.find({ userId })
     .sort({ placedAt: -1 })
-    .limit(limit)
-    .populate('userId', 'name email');
+    .limit(limit);
 };
 
 module.exports = mongoose.model('Order', orderSchema);

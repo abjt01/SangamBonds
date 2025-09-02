@@ -37,7 +37,7 @@ const io = socketIo(server, {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Database connection
 const connectDB = async () => {
@@ -82,18 +82,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting
+// UPDATED RATE LIMITING - More lenient for development
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Increased from 100 to 1000
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for development
+    if (process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    return false;
+  }
 });
 
-app.use('/api/', limiter);
+// Apply rate limiting only to API routes and skip in development
+if (process.env.NODE_ENV !== 'development') {
+  app.use('/api/', limiter);
+}
 
 // Body parsing middleware
 app.use(compression());
@@ -133,39 +143,31 @@ app.use('/api/orders', authenticate, orderRoutes);
 app.use('/api/portfolio', authenticate, portfolioRoutes);
 app.use('/api/users', authenticate, userRoutes);
 
-// WebSocket connection handling
+// WebSocket connection handling (keep existing code)
 io.on('connection', (socket) => {
   logger.info(`Client connected: ${socket.id}`);
 
-  // Join user-specific room for personalized updates
   socket.on('join_user_room', (userId) => {
     socket.join(`user_${userId}`);
     logger.info(`User ${userId} joined their room`);
   });
 
-  // Subscribe to bond updates
   socket.on('subscribe_bond', (bondId) => {
     socket.join(`bond_${bondId}`);
     logger.info(`Socket ${socket.id} subscribed to bond ${bondId}`);
   });
 
-  // Unsubscribe from bond updates
   socket.on('unsubscribe_bond', (bondId) => {
     socket.leave(`bond_${bondId}`);
     logger.info(`Socket ${socket.id} unsubscribed from bond ${bondId}`);
   });
 
-  // Handle order placement through WebSocket
   socket.on('place_order', async (orderData) => {
     try {
-      // Process order and emit updates
       const result = await matchingEngine.processOrder(orderData);
       
       if (result.success) {
-        // Emit to user
         io.to(`user_${orderData.userId}`).emit('order_placed', result.order);
-        
-        // Emit market update to all subscribers of this bond
         io.to(`bond_${orderData.bondId}`).emit('market_update', {
           bondId: orderData.bondId,
           type: 'order_placed',
@@ -213,7 +215,6 @@ function gracefulShutdown(signal) {
     });
   });
 
-  // Force close after 10 seconds
   setTimeout(() => {
     logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
@@ -230,6 +231,7 @@ if (require.main === module) {
     
     if (process.env.NODE_ENV === 'development') {
       logger.info(`💡 Demo user: demo@sangambonds.com / demo123`);
+      logger.info(`🔧 Rate limiting disabled for development`);
     }
   });
 }

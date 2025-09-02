@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -16,25 +16,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const initializingRef = useRef(false); // Prevent multiple initialization calls
 
   // Initialize auth on app start
   useEffect(() => {
     const initializeAuth = async () => {
+      if (initializingRef.current) return; // Prevent multiple calls
+      initializingRef.current = true;
+
       const savedToken = localStorage.getItem('token');
       if (savedToken) {
         try {
-          // Verify token with backend
-          api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-          const response = await api.get('/auth/profile');
-          setUser(response.data.data.user);
-          setToken(savedToken);
+          const response = await authAPI.getProfile();
+          if (response.data.success) {
+            setUser(response.data.data.user);
+            setToken(savedToken);
+          }
         } catch (error) {
           console.error('Token verification failed:', error);
           localStorage.removeItem('token');
-          delete api.defaults.headers.common['Authorization'];
+          setToken(null);
         }
       }
       setLoading(false);
+      initializingRef.current = false;
     };
 
     initializeAuth();
@@ -43,7 +48,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/login', { email, password });
+      const response = await authAPI.login(email, password);
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
@@ -51,7 +56,6 @@ export const AuthProvider = ({ children }) => {
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
         
         toast.success('Login successful!');
         return { success: true };
@@ -68,7 +72,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/register', { name, email, password });
+      const response = await authAPI.register(name, email, password);
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
@@ -76,7 +80,6 @@ export const AuthProvider = ({ children }) => {
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
         
         toast.success('Registration successful!');
         return { success: true };
@@ -93,7 +96,7 @@ export const AuthProvider = ({ children }) => {
   const demoLogin = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/auth/demo-login');
+      const response = await authAPI.demoLogin();
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
@@ -101,7 +104,6 @@ export const AuthProvider = ({ children }) => {
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
         
         toast.success('Demo login successful!');
         return { success: true };
@@ -119,12 +121,35 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
-    delete api.defaults.headers.common['Authorization'];
     toast.success('Logged out successfully');
   };
 
-  const updateUser = (userData) => {
-    setUser(prev => ({ ...prev, ...userData }));
+  const updateUser = async (userData) => {
+    try {
+      const response = await authAPI.updateProfile(userData);
+      if (response.data.success) {
+        setUser(response.data.data.user);
+        toast.success('Profile updated successfully');
+        return { success: true };
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update profile';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const refreshUserData = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await authAPI.getProfile();
+      if (response.data.success) {
+        setUser(response.data.data.user);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
   };
 
   const value = {
@@ -136,6 +161,7 @@ export const AuthProvider = ({ children }) => {
     demoLogin,
     logout,
     updateUser,
+    refreshUserData,
   };
 
   return (
@@ -145,5 +171,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// ADD THIS LINE - This fixes the import error:
 export { AuthContext };

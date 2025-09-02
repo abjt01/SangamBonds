@@ -16,6 +16,8 @@ import {
   TableRow,
   IconButton,
   Alert,
+  Paper,
+  Skeleton,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -26,118 +28,119 @@ import {
   Add,
   ArrowUpward,
   ArrowDownward,
+  ShowChart,
+  Timeline,
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { portfolioAPI, bondsAPI, ordersAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUserData } = useAuth();
+  const navigate = useNavigate();
   const [portfolioData, setPortfolioData] = useState(null);
+  const [marketData, setMarketData] = useState(null);
+  const [orderStats, setOrderStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock portfolio data (you can replace with real API calls)
-  const portfolioValue = 125750;
-  const totalPnL = 8750;
-  const todaysPnL = 1250;
-  const totalInvestment = 117000;
+  // Fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      const [portfolioResponse, marketResponse, orderStatsResponse] = await Promise.all([
+        portfolioAPI.getPortfolio(),
+        bondsAPI.getMarketOverview(),
+        ordersAPI.getOrderStats()
+      ]);
 
-  const performanceData = [
-    { name: 'Jan', value: 110000 },
-    { name: 'Feb', value: 115000 },
-    { name: 'Mar', value: 112000 },
-    { name: 'Apr', value: 118000 },
-    { name: 'May', value: 122000 },
-    { name: 'Jun', value: 125750 },
-  ];
+      if (portfolioResponse.data.success) {
+        setPortfolioData(portfolioResponse.data.data);
+      }
 
-  const assetAllocation = [
-    { name: 'Corporate Bonds', value: 65, color: '#1976d2' },
-    { name: 'Government Bonds', value: 25, color: '#2e7d32' },
-    { name: 'Cash', value: 10, color: '#ed6c02' },
-  ];
+      if (marketResponse.data.success) {
+        setMarketData(marketResponse.data.data);
+      }
 
-  const recentTransactions = [
-    {
-      id: 1,
-      type: 'BUY',
-      bond: 'HDFC Bank Ltd',
-      quantity: 10,
-      price: 1025.50,
-      date: '2025-09-01',
-      status: 'Completed',
-    },
-    {
-      id: 2,
-      type: 'SELL',
-      bond: 'Tata Motors Ltd',
-      quantity: 5,
-      price: 1070.29,
-      date: '2025-08-30',
-      status: 'Completed',
-    },
-    {
-      id: 3,
-      type: 'BUY',
-      bond: 'Reliance Industries',
-      quantity: 8,
-      price: 985.75,
-      date: '2025-08-28',
-      status: 'Pending',
-    },
-  ];
+      if (orderStatsResponse.data.success) {
+        setOrderStats(orderStatsResponse.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    fetchDashboardData();
   }, []);
 
-  const StatCard = ({ title, value, change, icon, color = 'primary' }) => (
-    <Card sx={{ height: '100%' }}>
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchDashboardData(),
+      refreshUserData()
+    ]);
+    setRefreshing(false);
+    toast.success('Dashboard refreshed');
+  };
+
+  const StatCard = ({ title, value, change, icon, color = 'primary', isLoading = false }) => (
+    <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
       <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
+        {isLoading ? (
           <Box>
-            <Typography color="text.secondary" gutterBottom variant="body2">
-              {title}
-            </Typography>
-            <Typography variant="h4" component="div" fontWeight="bold">
-              {value}
-            </Typography>
-            {change && (
-              <Box display="flex" alignItems="center" mt={1}>
-                {change >= 0 ? (
-                  <ArrowUpward sx={{ color: 'success.main', fontSize: 16 }} />
-                ) : (
-                  <ArrowDownward sx={{ color: 'error.main', fontSize: 16 }} />
-                )}
-                <Typography
-                  variant="body2"
-                  color={change >= 0 ? 'success.main' : 'error.main'}
-                  fontWeight="medium"
-                >
-                  {Math.abs(change).toLocaleString('en-IN')} ({((Math.abs(change) / totalInvestment) * 100).toFixed(2)}%)
-                </Typography>
-              </Box>
-            )}
+            <Skeleton variant="text" width="60%" height={20} />
+            <Skeleton variant="text" width="80%" height={40} />
+            <Skeleton variant="text" width="40%" height={16} />
           </Box>
-          <Avatar sx={{ bgcolor: `${color}.light` }}>
-            {icon}
-          </Avatar>
-        </Box>
+        ) : (
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography color="text.secondary" gutterBottom variant="body2">
+                {title}
+              </Typography>
+              <Typography variant="h4" component="div" fontWeight="bold">
+                {value}
+              </Typography>
+              {change !== undefined && (
+                <Box display="flex" alignItems="center" mt={1}>
+                  {change >= 0 ? (
+                    <ArrowUpward sx={{ color: 'success.main', fontSize: 16 }} />
+                  ) : (
+                    <ArrowDownward sx={{ color: 'error.main', fontSize: 16 }} />
+                  )}
+                  <Typography
+                    variant="body2"
+                    color={change >= 0 ? 'success.main' : 'error.main'}
+                    fontWeight="medium"
+                    ml={0.5}
+                  >
+                    {Math.abs(change).toLocaleString('en-IN')}
+                    {typeof change === 'number' && change % 1 !== 0 ? '%' : ''}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+            <Avatar sx={{ bgcolor: `${color}.light`, width: 56, height: 56 }}>
+              {icon}
+            </Avatar>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
 
-  if (loading) {
-    return (
-      <Box p={3}>
-        <Typography variant="h4" gutterBottom>Dashboard</Typography>
-        <LinearProgress />
-      </Box>
-    );
-  }
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
     <Box p={3}>
@@ -152,20 +155,42 @@ const Dashboard = () => {
           </Typography>
         </Box>
         <Box>
-          <Button variant="contained" startIcon={<Add />} sx={{ mr: 1 }}>
+          <Button 
+            variant="contained" 
+            startIcon={<Add />} 
+            sx={{ mr: 1 }}
+            onClick={() => navigate('/trading')}
+          >
             New Order
           </Button>
-          <IconButton>
-            <Refresh />
+          <IconButton 
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <Refresh sx={{ 
+              animation: refreshing ? 'spin 1s linear infinite' : 'none',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' }
+              }
+            }} />
           </IconButton>
         </Box>
       </Box>
 
       {/* KYC Alert */}
       {user?.kycStatus !== 'verified' && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate('/profile')}>
+              Complete KYC
+            </Button>
+          }
+        >
           <Typography variant="body2">
-            Complete your KYC verification to unlock full trading features.
+            Complete your KYC verification to unlock full trading features and higher limits.
           </Typography>
         </Alert>
       )}
@@ -174,37 +199,41 @@ const Dashboard = () => {
       <Grid container spacing={3} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Portfolio Value"
-            value={`₹${portfolioValue.toLocaleString('en-IN')}`}
-            change={totalPnL}
+            title="Portfolio Value"
+            value={portfolioData ? formatCurrency(portfolioData.summary.totalMarketValue) : formatCurrency(0)}
+            change={portfolioData?.summary.totalPnLPercentage}
             icon={<AccountBalance />}
             color="primary"
+            isLoading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total P&L"
-            value={`₹${totalPnL.toLocaleString('en-IN')}`}
-            change={totalPnL}
+            value={portfolioData ? formatCurrency(portfolioData.summary.totalPnL) : formatCurrency(0)}
+            change={portfolioData?.summary.totalPnLPercentage}
             icon={<TrendingUp />}
-            color="success"
+            color={portfolioData?.summary.totalPnL >= 0 ? "success" : "error"}
+            isLoading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Today's P&L"
-            value={`₹${todaysPnL.toLocaleString('en-IN')}`}
-            change={todaysPnL}
+            title="Active Orders"
+            value={orderStats?.activeOrders || 0}
             icon={<Assessment />}
             color="info"
+            isLoading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Trading Level"
             value={user?.trading?.level || 'Beginner'}
-            icon={<TrendingUp />}
+            change={user?.trading?.points}
+            icon={<ShowChart />}
             color="warning"
+            isLoading={loading}
           />
         </Grid>
       </Grid>
@@ -219,21 +248,35 @@ const Dashboard = () => {
                 Portfolio Performance
               </Typography>
               <Box height={300}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#1976d2"
-                      strokeWidth={2}
-                      dot={{ fill: '#1976d2' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <Skeleton variant="rectangular" width="100%" height={300} />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={portfolioData?.performanceHistory || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#1976d2"
+                        strokeWidth={2}
+                        dot={{ fill: '#1976d2', r: 4 }}
+                        name="Portfolio Value"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="invested"
+                        stroke="#ed6c02"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        name="Invested Amount"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </Box>
             </CardContent>
           </Card>
@@ -247,43 +290,56 @@ const Dashboard = () => {
                 Asset Allocation
               </Typography>
               <Box height={250}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={assetAllocation}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, value }) => `${value}%`}
-                    >
-                      {assetAllocation.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {loading ? (
+                  <Skeleton variant="circular" width={200} height={200} sx={{ mx: 'auto' }} />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={portfolioData?.sectorAllocation || []}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, value }) => `${value}%`}
+                      >
+                        {portfolioData?.sectorAllocation?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </Box>
               <Box mt={2}>
-                {assetAllocation.map((item) => (
-                  <Box key={item.name} display="flex" alignItems="center" mb={1}>
-                    <Box
-                      width={12}
-                      height={12}
-                      bgcolor={item.color}
-                      borderRadius="50%"
-                      mr={1}
-                    />
-                    <Typography variant="body2" sx={{ flexGrow: 1 }}>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="body2" fontWeight="medium">
-                      {item.value}%
-                    </Typography>
-                  </Box>
-                ))}
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <Box key={index} display="flex" alignItems="center" mb={1}>
+                      <Skeleton variant="circular" width={12} height={12} sx={{ mr: 1 }} />
+                      <Skeleton variant="text" width="70%" height={20} />
+                    </Box>
+                  ))
+                ) : (
+                  portfolioData?.sectorAllocation?.map((item) => (
+                    <Box key={item.name} display="flex" alignItems="center" mb={1}>
+                      <Box
+                        width={12}
+                        height={12}
+                        bgcolor={item.color}
+                        borderRadius="50%"
+                        mr={1}
+                      />
+                      <Typography variant="body2" sx={{ flexGrow: 1 }}>
+                        {item.name}
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {item.value}%
+                      </Typography>
+                    </Box>
+                  ))
+                )}
               </Box>
             </CardContent>
           </Card>
@@ -291,57 +347,91 @@ const Dashboard = () => {
       </Grid>
 
       {/* Recent Transactions */}
-      <Card>
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">
-              Recent Transactions
-            </Typography>
-            <Button size="small">View All</Button>
-          </Box>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Type</TableCell>
-                <TableCell>Bond</TableCell>
-                <TableCell align="right">Quantity</TableCell>
-                <TableCell align="right">Price</TableCell>
-                <TableCell align="right">Value</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {recentTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>
-                    <Chip
-                      label={transaction.type}
-                      color={transaction.type === 'BUY' ? 'success' : 'error'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{transaction.bond}</TableCell>
-                  <TableCell align="right">{transaction.quantity}</TableCell>
-                  <TableCell align="right">₹{transaction.price.toLocaleString('en-IN')}</TableCell>
-                  <TableCell align="right">
-                    ₹{(transaction.quantity * transaction.price).toLocaleString('en-IN')}
-                  </TableCell>
-                  <TableCell>{transaction.date}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={transaction.status}
-                      color={transaction.status === 'Completed' ? 'success' : 'warning'}
-                      variant="outlined"
-                      size="small"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Paper elevation={2}>
+        <Card>
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">
+                Recent Transactions
+              </Typography>
+              <Button 
+                size="small" 
+                startIcon={<Timeline />}
+                onClick={() => navigate('/portfolio')}
+              >
+                View All
+              </Button>
+            </Box>
+            {loading ? (
+              <Box>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Box key={index} display="flex" alignItems="center" py={1}>
+                    <Skeleton variant="circular" width={40} height={40} sx={{ mr: 2 }} />
+                    <Box flexGrow={1}>
+                      <Skeleton variant="text" width="60%" height={20} />
+                      <Skeleton variant="text" width="40%" height={16} />
+                    </Box>
+                    <Skeleton variant="text" width="20%" height={20} />
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Bond</TableCell>
+                    <TableCell align="right">Quantity</TableCell>
+                    <TableCell align="right">Price</TableCell>
+                    <TableCell align="right">Value</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {portfolioData?.recentTransactions?.slice(0, 5).map((transaction) => (
+                    <TableRow key={transaction.id} hover>
+                      <TableCell>
+                        <Chip
+                          label={transaction.type}
+                          color={transaction.type === 'BUY' ? 'success' : 'error'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{transaction.bondName}</TableCell>
+                      <TableCell align="right">{transaction.quantity}</TableCell>
+                      <TableCell align="right">{formatCurrency(transaction.price)}</TableCell>
+                      <TableCell align="right">
+                        {formatCurrency(transaction.value)}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(transaction.date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={transaction.status}
+                          color="success"
+                          variant="outlined"
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!portfolioData?.recentTransactions || portfolioData.recentTransactions.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary" py={2}>
+                          No transactions yet. Start trading to see your activity here.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </Paper>
     </Box>
   );
 };

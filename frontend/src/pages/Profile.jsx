@@ -27,6 +27,7 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Snackbar,
 } from '@mui/material';
 import {
   Edit,
@@ -35,20 +36,22 @@ import {
   PhotoCamera,
   Verified,
   Warning,
-  Security,
-  Notifications,
-  Palette,
-  Language,
   Upload,
   CheckCircle,
   Error,
+  CloudUpload,
+  Delete,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [kycDialogOpen, setKycDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -61,6 +64,7 @@ const Profile = () => {
       zipCode: user?.profile?.address?.zipCode || '',
     },
   });
+  
   const [preferences, setPreferences] = useState({
     notifications: {
       email: user?.preferences?.notifications?.email ?? true,
@@ -69,6 +73,12 @@ const Profile = () => {
     },
     language: user?.preferences?.language || 'en',
     theme: user?.preferences?.theme || 'light',
+  });
+
+  const [kycDocuments, setKycDocuments] = useState({
+    panCard: null,
+    aadharCard: null,
+    bankStatement: null,
   });
 
   const handleInputChange = (e) => {
@@ -97,13 +107,59 @@ const Profile = () => {
     }));
   };
 
-  const handleSave = () => {
-    // Update user data
-    updateUser({
-      ...formData,
-      preferences
-    });
-    setEditing(false);
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      toast.error('Name is required');
+      return false;
+    }
+    
+    if (!formData.email.trim()) {
+      toast.error('Email is required');
+      return false;
+    }
+    
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      toast.error('Please enter a valid email');
+      return false;
+    }
+    
+    if (formData.phone && !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      toast.error('Please enter a valid 10-digit phone number');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updateData = {
+        name: formData.name,
+        profile: {
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          address: formData.address,
+        },
+        preferences
+      };
+
+      const result = await updateUser(updateData);
+      
+      if (result.success) {
+        setEditing(false);
+        toast.success('Profile updated successfully');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -120,6 +176,59 @@ const Profile = () => {
       },
     });
     setEditing(false);
+  };
+
+  const handleFileUpload = (documentType, event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file
+    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload only JPEG, PNG, or PDF files');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setKycDocuments(prev => ({
+      ...prev,
+      [documentType]: file
+    }));
+
+    toast.success(`${documentType} uploaded successfully`);
+  };
+
+  const handleKycSubmit = async () => {
+    if (!kycDocuments.panCard || !kycDocuments.aadharCard) {
+      toast.error('Please upload PAN Card and Aadhaar Card');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // In a real application, you would upload the files to a server
+      // For now, we'll simulate the process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast.success('KYC documents submitted for review');
+      setKycDialogOpen(false);
+      setKycDocuments({
+        panCard: null,
+        aadharCard: null,
+        bankStatement: null,
+      });
+      
+    } catch (error) {
+      console.error('Error submitting KYC:', error);
+      toast.error('Failed to submit KYC documents');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const getKycStatusColor = (status) => {
@@ -169,6 +278,7 @@ const Profile = () => {
                 startIcon={<Cancel />}
                 onClick={handleCancel}
                 sx={{ mr: 1 }}
+                disabled={saving}
               >
                 Cancel
               </Button>
@@ -176,8 +286,9 @@ const Profile = () => {
                 variant="contained"
                 startIcon={<Save />}
                 onClick={handleSave}
+                disabled={saving}
               >
-                Save Changes
+                {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </>
           ) : (
@@ -209,15 +320,24 @@ const Profile = () => {
                 >
                   {user?.name?.charAt(0)}
                 </Avatar>
-                <Box>
+                <Box flexGrow={1}>
                   <Typography variant="h6">{user?.name}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Member since {new Date(user?.createdAt).getFullYear()}
+                    Member since {new Date(user?.createdAt || Date.now()).getFullYear()}
                   </Typography>
-                  <IconButton size="small" disabled={!editing}>
-                    <PhotoCamera />
-                  </IconButton>
                 </Box>
+                <IconButton 
+                  component="label" 
+                  disabled={!editing}
+                  sx={{ 
+                    bgcolor: 'primary.light', 
+                    color: 'primary.contrastText',
+                    '&:hover': { bgcolor: 'primary.main' }
+                  }}
+                >
+                  <PhotoCamera />
+                  <input type="file" hidden accept="image/*" />
+                </IconButton>
               </Box>
 
               <Grid container spacing={2}>
@@ -229,6 +349,8 @@ const Profile = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     disabled={!editing}
+                    error={editing && !formData.name.trim()}
+                    helperText={editing && !formData.name.trim() ? 'Name is required' : ''}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -239,7 +361,8 @@ const Profile = () => {
                     type="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    disabled={!editing}
+                    disabled={true} // Email should not be editable
+                    helperText="Contact support to change email"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -250,6 +373,7 @@ const Profile = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     disabled={!editing}
+                    placeholder="+91 XXXXX XXXXX"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -308,7 +432,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Notification Preferences */}
+          {/* Preferences */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -317,7 +441,6 @@ const Profile = () => {
               
               <Box mb={3}>
                 <Typography variant="subtitle2" gutterBottom>
-                  <Notifications sx={{ mr: 1, verticalAlign: 'middle' }} />
                   Notifications
                 </Typography>
                 <FormControlLabel
@@ -405,7 +528,7 @@ const Profile = () => {
               
               {user?.kycStatus !== 'verified' && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Complete KYC to unlock full trading features
+                  Complete KYC to unlock full trading features and higher limits.
                 </Alert>
               )}
               
@@ -436,19 +559,21 @@ const Profile = () => {
               </Box>
               
               <Box mb={1}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" gutterBottom>
                   Progress to next level
                 </Typography>
                 <LinearProgress
                   variant="determinate"
-                  value={(tradingPoints / nextLevelPoints[tradingLevel]) * 100}
-                  sx={{ height: 8, borderRadius: 4 }}
+                  value={Math.min((tradingPoints / nextLevelPoints[tradingLevel]) * 100, 100)}
+                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  {nextLevelPoints[tradingLevel] - tradingPoints} points to {
-                    tradingLevel === 'Beginner' ? 'Intermediate' :
-                    tradingLevel === 'Intermediate' ? 'Advanced' :
-                    tradingLevel === 'Advanced' ? 'Expert' : 'Max Level'
+                  {nextLevelPoints[tradingLevel] === 999999 
+                    ? 'Maximum level reached!' 
+                    : `${(nextLevelPoints[tradingLevel] - tradingPoints).toLocaleString()} points to ${
+                        tradingLevel === 'Beginner' ? 'Intermediate' :
+                        tradingLevel === 'Intermediate' ? 'Advanced' : 'Expert'
+                      }`
                   }
                 </Typography>
               </Box>
@@ -470,19 +595,25 @@ const Profile = () => {
                 <ListItem>
                   <ListItemText
                     primary="Account Balance"
-                    secondary={`₹${user?.wallet?.balance?.toLocaleString('en-IN') || '0'}`}
+                    secondary={new Intl.NumberFormat('en-IN', {
+                      style: 'currency',
+                      currency: 'INR'
+                    }).format(user?.wallet?.balance || 0)}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
                     primary="Last Login"
-                    secondary={new Date(user?.lastLogin).toLocaleDateString()}
+                    secondary={user?.lastLogin 
+                      ? new Date(user.lastLogin).toLocaleDateString()
+                      : 'Never'
+                    }
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
                     primary="Member Since"
-                    secondary={new Date(user?.createdAt).toLocaleDateString()}
+                    secondary={new Date(user?.createdAt || Date.now()).toLocaleDateString()}
                   />
                 </ListItem>
               </List>
@@ -492,7 +623,12 @@ const Profile = () => {
       </Grid>
 
       {/* KYC Upload Dialog */}
-      <Dialog open={kycDialogOpen} onClose={() => setKycDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={kycDialogOpen} 
+        onClose={() => !uploading && setKycDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+      >
         <DialogTitle>Upload KYC Documents</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
@@ -502,39 +638,100 @@ const Profile = () => {
           <List>
             <ListItem>
               <ListItemIcon>
-                <CheckCircle color="success" />
+                {kycDocuments.panCard ? <CheckCircle color="success" /> : <Warning color="warning" />}
               </ListItemIcon>
               <ListItemText
                 primary="PAN Card"
-                secondary="Clear photo of your PAN card"
+                secondary="Clear photo of your PAN card (JPEG, PNG, or PDF)"
               />
-              <Button size="small" variant="outlined">Upload</Button>
+              <Button 
+                component="label" 
+                size="small" 
+                variant="outlined"
+                startIcon={kycDocuments.panCard ? <CheckCircle /> : <CloudUpload />}
+                disabled={uploading}
+              >
+                {kycDocuments.panCard ? 'Uploaded' : 'Upload'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload('panCard', e)}
+                />
+              </Button>
             </ListItem>
             <ListItem>
               <ListItemIcon>
-                <Warning color="warning" />
+                {kycDocuments.aadharCard ? <CheckCircle color="success" /> : <Warning color="warning" />}
               </ListItemIcon>
               <ListItemText
                 primary="Aadhaar Card"
-                secondary="Front and back photos"
+                secondary="Front and back photos (JPEG, PNG, or PDF)"
               />
-              <Button size="small" variant="outlined">Upload</Button>
+              <Button 
+                component="label" 
+                size="small" 
+                variant="outlined"
+                startIcon={kycDocuments.aadharCard ? <CheckCircle /> : <CloudUpload />}
+                disabled={uploading}
+              >
+                {kycDocuments.aadharCard ? 'Uploaded' : 'Upload'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload('aadharCard', e)}
+                />
+              </Button>
             </ListItem>
             <ListItem>
               <ListItemIcon>
-                <Warning color="warning" />
+                {kycDocuments.bankStatement ? <CheckCircle color="success" /> : <Warning color="disabled" />}
               </ListItemIcon>
               <ListItemText
-                primary="Bank Statement"
-                secondary="Last 3 months statement"
+                primary="Bank Statement (Optional)"
+                secondary="Last 3 months statement (PDF preferred)"
               />
-              <Button size="small" variant="outlined">Upload</Button>
+              <Button 
+                component="label" 
+                size="small" 
+                variant="outlined"
+                startIcon={kycDocuments.bankStatement ? <CheckCircle /> : <CloudUpload />}
+                disabled={uploading}
+              >
+                {kycDocuments.bankStatement ? 'Uploaded' : 'Upload'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => handleFileUpload('bankStatement', e)}
+                />
+              </Button>
             </ListItem>
           </List>
+
+          {(kycDocuments.panCard || kycDocuments.aadharCard || kycDocuments.bankStatement) && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                Documents will be verified within 24-48 hours. You'll receive an email notification once verification is complete.
+              </Typography>
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setKycDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained">Submit for Review</Button>
+          <Button 
+            onClick={() => setKycDialogOpen(false)}
+            disabled={uploading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleKycSubmit} 
+            variant="contained"
+            disabled={!kycDocuments.panCard || !kycDocuments.aadharCard || uploading}
+          >
+            {uploading ? 'Submitting...' : 'Submit for Review'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

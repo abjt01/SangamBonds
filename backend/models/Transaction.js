@@ -297,19 +297,24 @@ transactionSchema.methods.markAsFailed = function(reason) {
 // Static methods
 transactionSchema.statics.getUserTransactionHistory = function(userId, startDate, endDate, limit = 50) {
   const matchStage = {
-    $or: [{ buyerId: userId }, { sellerId: userId }],
-    executedAt: {
-      $gte: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Default: last 30 days
-      $lte: endDate || new Date()
-    },
+    $or: [
+      { buyerId: new mongoose.Types.ObjectId(userId) }, 
+      { sellerId: new mongoose.Types.ObjectId(userId) }
+    ],
     status: 'completed'
   };
 
+  if (startDate) {
+    matchStage.executedAt = { $gte: startDate };
+  }
+  
+  if (endDate) {
+    matchStage.executedAt = { ...matchStage.executedAt, $lte: endDate };
+  }
+
   return this.find(matchStage)
     .sort({ executedAt: -1 })
-    .limit(limit)
-    .populate('buyerId', 'name email')
-    .populate('sellerId', 'name email');
+    .limit(limit);
 };
 
 transactionSchema.statics.getBondTradingActivity = function(bondId, days = 30) {

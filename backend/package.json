@@ -13,17 +13,6 @@
     "format": "prettier --write \"**/*.js\"",
     "seed": "node utils/seedDatabase.js"
   },
-  "keywords": [
-    "api",
-    "backend",
-    "nodejs",
-    "express",
-    "mongodb",
-    "bonds",
-    "trading"
-  ],
-  "author": "SangamBonds Team",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "mongoose": "^7.5.4",

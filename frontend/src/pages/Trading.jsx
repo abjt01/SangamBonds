@@ -24,7 +24,11 @@ import {
   Tabs,
   Tab,
   Avatar,
-  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Skeleton,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -34,102 +38,265 @@ import {
   Timeline,
   BookmarkBorder,
   Info,
+  CheckCircle,
+  Warning,
 } from '@mui/icons-material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { bondsAPI, ordersAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const Trading = () => {
   const { bondId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [selectedBond, setSelectedBond] = useState(bondId || 'HDFC001');
+  const { user, refreshUserData } = useAuth();
+  
+  // State
+  const [selectedBond, setSelectedBond] = useState(bondId || '');
+  const [bondData, setBondData] = useState(null);
+  const [orderBook, setOrderBook] = useState({ bids: [], asks: [] });
+  const [recentTrades, setRecentTrades] = useState([]);
+  const [priceChart, setPriceChart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  
+  // Order Form State
   const [orderType, setOrderType] = useState('buy');
   const [priceType, setPriceType] = useState('market');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
-  const [tabValue, setTabValue] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Available bonds for selection
+  const [availableBonds, setAvailableBonds] = useState([]);
 
-  // Mock bond data
-  const bondData = {
-    HDFC001: {
-      bondId: 'HDFC001',
-      name: 'HDFC Bank Ltd',
-      symbol: 'HDFCBANK',
-      currentPrice: 1025.50,
-      priceChange: { absolute: 15.50, percentage: 1.54 },
-      high: 1035.20,
-      low: 1018.75,
-      volume: 2500,
-      couponRate: 6.8,
-      rating: 'AAA',
+  const fetchBondData = async (bondIdToFetch) => {
+    try {
+      const response = await bondsAPI.getBondById(bondIdToFetch);
+      if (response.data.success) {
+        setBondData(response.data.data.bond);
+        setPrice(response.data.data.bond.currentPrice.toString());
+      }
+    } catch (error) {
+      console.error('Error fetching bond data:', error);
+      toast.error('Failed to load bond data');
     }
   };
 
-  const currentBond = bondData[selectedBond] || bondData.HDFC001;
-
-  // Mock price chart data
-  const priceChartData = [
-    { time: '09:15', price: 1010.25 },
-    { time: '09:30', price: 1012.80 },
-    { time: '09:45', price: 1015.20 },
-    { time: '10:00', price: 1018.45 },
-    { time: '10:15', price: 1022.10 },
-    { time: '10:30', price: 1025.50 },
-    { time: '10:45', price: 1023.80 },
-    { time: '11:00', price: 1025.50 },
-  ];
-
-  // Mock order book data
-  const orderBookData = {
-    bids: [
-      { price: 1025.25, quantity: 150, orders: 5 },
-      { price: 1025.00, quantity: 200, orders: 8 },
-      { price: 1024.75, quantity: 100, orders: 3 },
-      { price: 1024.50, quantity: 250, orders: 12 },
-      { price: 1024.25, quantity: 180, orders: 7 },
-      { price: 1024.00, quantity: 300, orders: 15 },
-      { price: 1023.75, quantity: 120, orders: 4 },
-      { price: 1023.50, quantity: 220, orders: 9 },
-    ],
-    asks: [
-      { price: 1025.50, quantity: 100, orders: 4 },
-      { price: 1025.75, quantity: 180, orders: 6 },
-      { price: 1026.00, quantity: 150, orders: 7 },
-      { price: 1026.25, quantity: 200, orders: 9 },
-      { price: 1026.50, quantity: 120, orders: 5 },
-      { price: 1026.75, quantity: 300, orders: 14 },
-      { price: 1027.00, quantity: 250, orders: 11 },
-      { price: 1027.25, quantity: 180, orders: 8 },
-    ]
+  const fetchOrderBook = async (bondIdToFetch) => {
+    try {
+      const response = await ordersAPI.getOrderBook(bondIdToFetch, 10);
+      if (response.data.success) {
+        setOrderBook(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching order book:', error);
+    }
   };
 
-  // Mock recent trades
-  const recentTrades = [
-    { price: 1025.50, quantity: 50, time: '11:05:23', type: 'buy' },
-    { price: 1025.25, quantity: 75, time: '11:04:45', type: 'sell' },
-    { price: 1025.50, quantity: 100, time: '11:03:12', type: 'buy' },
-    { price: 1025.75, quantity: 25, time: '11:02:58', type: 'buy' },
-    { price: 1025.25, quantity: 150, time: '11:01:34', type: 'sell' },
-    { price: 1025.50, quantity: 80, time: '11:00:22', type: 'buy' },
-  ];
+  const fetchRecentTrades = async (bondIdToFetch) => {
+    try {
+      const response = await ordersAPI.getRecentTrades(bondIdToFetch, 20);
+      if (response.data.success) {
+        setRecentTrades(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching recent trades:', error);
+    }
+  };
 
-  const handleOrderSubmit = (e) => {
-    e.preventDefault();
-    // Handle order submission
-    const orderData = {
-      bondId: selectedBond,
-      type: orderType,
-      priceType,
-      quantity: parseInt(quantity),
-      price: priceType === 'limit' ? parseFloat(price) : currentBond.currentPrice,
+  const fetchAvailableBonds = async () => {
+    try {
+      const response = await bondsAPI.getAllBonds({ limit: 50 });
+      if (response.data.success) {
+        setAvailableBonds(response.data.data.bonds);
+      }
+    } catch (error) {
+      console.error('Error fetching available bonds:', error);
+    }
+  };
+
+  const generateMockPriceChart = (currentPrice) => {
+    const data = [];
+    let basePrice = currentPrice * 0.98;
+    
+    for (let i = 0; i < 24; i++) {
+      const time = `${9 + Math.floor(i / 4)}:${(i % 4) * 15 || '00'}`;
+      basePrice += (Math.random() - 0.5) * currentPrice * 0.005;
+      data.push({
+        time,
+        price: Math.max(basePrice, currentPrice * 0.95)
+      });
+    }
+    
+    data[data.length - 1].price = currentPrice;
+    return data;
+  };
+
+  useEffect(() => {
+    const initializeTrading = async () => {
+      setLoading(true);
+      
+      // Get available bonds first
+      await fetchAvailableBonds();
+      
+      const bondToLoad = bondId || 'HDFC001';
+      setSelectedBond(bondToLoad);
+      
+      await Promise.all([
+        fetchBondData(bondToLoad),
+        fetchOrderBook(bondToLoad),
+        fetchRecentTrades(bondToLoad)
+      ]);
+      
+      setLoading(false);
     };
-    console.log('Order submitted:', orderData);
-    // Add success message or API call here
+
+    initializeTrading();
+  }, [bondId]);
+
+  useEffect(() => {
+    if (bondData) {
+      setPriceChart(generateMockPriceChart(bondData.currentPrice));
+    }
+  }, [bondData]);
+
+  const handleBondChange = async (newBondId) => {
+    setSelectedBond(newBondId);
+    setLoading(true);
+    
+    await Promise.all([
+      fetchBondData(newBondId),
+      fetchOrderBook(newBondId),
+      fetchRecentTrades(newBondId)
+    ]);
+    
+    navigate(`/trading/${newBondId}`, { replace: true });
+    setLoading(false);
   };
 
-  const maxQuantity = orderType === 'buy' ? Math.floor(user?.wallet?.balance / currentBond.currentPrice) : 100;
-  const orderValue = quantity && priceType === 'limit' ? quantity * parseFloat(price || 0) : quantity * currentBond.currentPrice;
+  const validateOrder = () => {
+    if (!quantity || parseInt(quantity) <= 0) {
+      toast.error('Please enter a valid quantity');
+      return false;
+    }
+
+    if (priceType === 'limit' && (!price || parseFloat(price) <= 0)) {
+      toast.error('Please enter a valid price');
+      return false;
+    }
+
+    if (user?.kycStatus !== 'verified') {
+      const orderValue = parseInt(quantity) * (priceType === 'market' ? bondData.currentPrice : parseFloat(price));
+      if (orderValue > 10000) {
+        toast.error('KYC verification required for orders above ₹10,000');
+        return false;
+      }
+    }
+
+    if (orderType === 'buy') {
+      const orderValue = parseInt(quantity) * (priceType === 'market' ? bondData.currentPrice : parseFloat(price));
+      if (user.wallet.balance < orderValue) {
+        toast.error('Insufficient balance');
+        return false;
+      }
+
+      if (bondData.availableTokens < parseInt(quantity)) {
+        toast.error('Insufficient tokens available');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleOrderSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateOrder()) {
+      return;
+    }
+
+    setConfirmDialog(true);
+  };
+
+  const confirmOrder = async () => {
+    try {
+      setSubmitting(true);
+      setConfirmDialog(false);
+
+      const orderData = {
+        bondId: selectedBond,
+        orderType,
+        orderSubType: priceType,
+        quantity: parseInt(quantity),
+        price: priceType === 'limit' ? parseFloat(price) : undefined,
+        timeInForce: 'GTC'
+      };
+
+      const response = await ordersAPI.placeOrder(orderData);
+      
+      if (response.data.success) {
+        toast.success('Order placed successfully!');
+        
+        // Reset form
+        setQuantity('');
+        if (priceType === 'limit') {
+          setPrice(bondData.currentPrice.toString());
+        }
+        
+        // Refresh data
+        await Promise.all([
+          fetchBondData(selectedBond),
+          fetchOrderBook(selectedBond),
+          refreshUserData()
+        ]);
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to place order';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const maxQuantity = orderType === 'buy' 
+    ? Math.min(
+        Math.floor(user?.wallet?.balance / (priceType === 'market' ? bondData?.currentPrice || 1 : parseFloat(price) || 1)),
+        bondData?.availableTokens || 0
+      )
+    : 1000; // For sell orders, this would come from user's holdings
+
+  const orderValue = quantity && bondData 
+    ? parseInt(quantity) * (priceType === 'limit' ? parseFloat(price || 0) : bondData.currentPrice)
+    : 0;
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  if (loading && !bondData) {
+    return (
+      <Box p={3}>
+        <Typography variant="h4" gutterBottom>Trading</Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+            <Skeleton variant="rectangular" height={300} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Skeleton variant="rectangular" height={400} sx={{ mb: 2 }} />
+            <Skeleton variant="rectangular" height={300} />
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  }
 
   return (
     <Box p={3}>
@@ -143,9 +310,26 @@ const Trading = () => {
             Trade corporate bonds with real-time order matching
           </Typography>
         </Box>
-        <Button variant="outlined" startIcon={<Refresh />}>
-          Refresh Data
-        </Button>
+        <Box>
+          <FormControl sx={{ minWidth: 200, mr: 2 }}>
+            <InputLabel>Select Bond</InputLabel>
+            <Select
+              value={selectedBond}
+              label="Select Bond"
+              onChange={(e) => handleBondChange(e.target.value)}
+              size="small"
+            >
+              {availableBonds.map((bond) => (
+                <MenuItem key={bond.bondId} value={bond.bondId}>
+                  {bond.symbol} - {bond.name.substring(0, 20)}...
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button variant="outlined" startIcon={<Refresh />}>
+            Refresh Data
+          </Button>
+        </Box>
       </Box>
 
       <Grid container spacing={3}>
@@ -157,33 +341,33 @@ const Trading = () => {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box display="flex" alignItems="center">
                   <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.light' }}>
-                    {currentBond.symbol.substring(0, 2)}
+                    {bondData?.symbol?.substring(0, 2) || 'NA'}
                   </Avatar>
                   <Box>
                     <Typography variant="h6" fontWeight="bold">
-                      {currentBond.name}
+                      {bondData?.name || 'Loading...'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {currentBond.symbol} • {currentBond.couponRate}% • {currentBond.rating}
+                      {bondData?.symbol} • {bondData?.couponRate}% • {bondData?.rating?.value}
                     </Typography>
                   </Box>
                 </Box>
                 <Box textAlign="right">
                   <Typography variant="h5" fontWeight="bold">
-                    ₹{currentBond.currentPrice.toFixed(2)}
+                    {bondData ? formatCurrency(bondData.currentPrice) : '---'}
                   </Typography>
                   <Box display="flex" alignItems="center">
-                    {currentBond.priceChange.percentage >= 0 ? (
+                    {bondData?.priceChange?.percentage >= 0 ? (
                       <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
                     ) : (
                       <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
                     )}
                     <Typography
-                      color={currentBond.priceChange.percentage >= 0 ? 'success.main' : 'error.main'}
+                      color={bondData?.priceChange?.percentage >= 0 ? 'success.main' : 'error.main'}
                       fontWeight="medium"
                     >
-                      {currentBond.priceChange.percentage >= 0 ? '+' : ''}{currentBond.priceChange.percentage.toFixed(2)}%
-                      ({currentBond.priceChange.percentage >= 0 ? '+' : ''}₹{currentBond.priceChange.absolute.toFixed(2)})
+                      {bondData?.priceChange?.percentage >= 0 ? '+' : ''}{bondData?.priceChange?.percentage?.toFixed(2) || '0.00'}%
+                      ({bondData?.priceChange?.percentage >= 0 ? '+' : ''}{formatCurrency(bondData?.priceChange?.absolute || 0)})
                     </Typography>
                   </Box>
                 </Box>
@@ -191,19 +375,27 @@ const Trading = () => {
               <Grid container spacing={2} mt={1}>
                 <Grid item xs={3}>
                   <Typography variant="caption" color="text.secondary">Day High</Typography>
-                  <Typography variant="body2" fontWeight="medium">₹{currentBond.high}</Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {bondData ? formatCurrency(bondData.currentPrice * 1.02) : '---'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={3}>
                   <Typography variant="caption" color="text.secondary">Day Low</Typography>
-                  <Typography variant="body2" fontWeight="medium">₹{currentBond.low}</Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {bondData ? formatCurrency(bondData.currentPrice * 0.98) : '---'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={3}>
                   <Typography variant="caption" color="text.secondary">Volume</Typography>
-                  <Typography variant="body2" fontWeight="medium">{currentBond.volume.toLocaleString()}</Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {bondData?.volume?.today?.toLocaleString() || '0'}
+                  </Typography>
                 </Grid>
                 <Grid item xs={3}>
-                  <Typography variant="caption" color="text.secondary">Coupon</Typography>
-                  <Typography variant="body2" fontWeight="medium">{currentBond.couponRate}%</Typography>
+                  <Typography variant="caption" color="text.secondary">Yield</Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {bondData?.currentYield?.toFixed(2) || '0.00'}%
+                  </Typography>
                 </Grid>
               </Grid>
             </CardContent>
@@ -222,11 +414,11 @@ const Trading = () => {
               </Box>
               <Box height={300}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={priceChartData}>
+                  <LineChart data={priceChart}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
                     <YAxis domain={['dataMin - 5', 'dataMax + 5']} />
-                    <Tooltip formatter={(value) => [`₹${value}`, 'Price']} />
+                    <Tooltip formatter={(value) => [formatCurrency(value), 'Price']} />
                     <Line
                       type="monotone"
                       dataKey="price"
@@ -249,6 +441,15 @@ const Trading = () => {
               <Typography variant="h6" gutterBottom>
                 Place Order
               </Typography>
+              
+              {user?.kycStatus !== 'verified' && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    KYC verification required for orders above ₹10,000
+                  </Typography>
+                </Alert>
+              )}
+              
               <Box component="form" onSubmit={handleOrderSubmit}>
                 <Tabs
                   value={orderType}
@@ -279,6 +480,7 @@ const Trading = () => {
                   onChange={(e) => setQuantity(e.target.value)}
                   helperText={`Max: ${maxQuantity.toLocaleString()}`}
                   sx={{ mb: 2 }}
+                  inputProps={{ min: 1, max: maxQuantity }}
                 />
 
                 {priceType === 'limit' && (
@@ -292,16 +494,22 @@ const Trading = () => {
                       startAdornment: '₹',
                     }}
                     sx={{ mb: 2 }}
+                    inputProps={{ min: 0, step: 0.01 }}
                   />
                 )}
 
                 <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Order Value: ₹{orderValue ? orderValue.toLocaleString() : '0'}
+                    Order Value: {formatCurrency(orderValue)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Available Balance: ₹{user?.wallet?.balance?.toLocaleString()}
+                    Available Balance: {formatCurrency(user?.wallet?.balance || 0)}
                   </Typography>
+                  {orderType === 'buy' && orderValue > (user?.wallet?.balance || 0) && (
+                    <Typography variant="body2" color="error.main">
+                      Insufficient balance
+                    </Typography>
+                  )}
                 </Box>
 
                 <Button
@@ -309,9 +517,13 @@ const Trading = () => {
                   fullWidth
                   variant="contained"
                   color={orderType === 'buy' ? 'success' : 'error'}
-                  disabled={!quantity || (priceType === 'limit' && !price)}
+                  disabled={!quantity || (priceType === 'limit' && !price) || submitting}
+                  size="large"
                 >
-                  {orderType === 'buy' ? 'Buy' : 'Sell'} {currentBond.symbol}
+                  {submitting 
+                    ? 'Placing Order...' 
+                    : `${orderType === 'buy' ? 'Buy' : 'Sell'} ${bondData?.symbol || ''}`
+                  }
                 </Button>
               </Box>
             </CardContent>
@@ -335,17 +547,24 @@ const Trading = () => {
                         <TableRow>
                           <TableCell>Price</TableCell>
                           <TableCell align="right">Qty</TableCell>
-                          <TableCell align="right">Orders</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {orderBookData.asks.slice(0, 8).reverse().map((ask, index) => (
-                          <TableRow key={index} sx={{ bgcolor: 'error.50' }}>
-                            <TableCell>₹{ask.price}</TableCell>
-                            <TableCell align="right">{ask.quantity}</TableCell>
-                            <TableCell align="right">{ask.orders}</TableCell>
+                        {orderBook.asks.slice(0, 8).reverse().map((ask, index) => (
+                          <TableRow key={index} sx={{ bgcolor: 'rgba(244, 67, 54, 0.05)' }}>
+                            <TableCell>{formatCurrency(ask.price)}</TableCell>
+                            <TableCell align="right">{ask.remainingQuantity}</TableCell>
                           </TableRow>
                         ))}
+                        {orderBook.asks.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={2} align="center">
+                              <Typography variant="body2" color="text.secondary">
+                                No sell orders
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -355,7 +574,10 @@ const Trading = () => {
                 <Grid item xs={12}>
                   <Divider sx={{ my: 1 }}>
                     <Chip
-                      label={`Spread: ₹${(orderBookData.asks[0].price - orderBookData.bids[0].price).toFixed(2)}`}
+                      label={orderBook.asks[0] && orderBook.bids[0] 
+                        ? `Spread: ${formatCurrency(orderBook.asks[0].price - orderBook.bids[0].price)}`
+                        : 'No spread data'
+                      }
                       size="small"
                     />
                   </Divider>
@@ -372,17 +594,24 @@ const Trading = () => {
                         <TableRow>
                           <TableCell>Price</TableCell>
                           <TableCell align="right">Qty</TableCell>
-                          <TableCell align="right">Orders</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {orderBookData.bids.slice(0, 8).map((bid, index) => (
-                          <TableRow key={index} sx={{ bgcolor: 'success.50' }}>
-                            <TableCell>₹{bid.price}</TableCell>
-                            <TableCell align="right">{bid.quantity}</TableCell>
-                            <TableCell align="right">{bid.orders}</TableCell>
+                        {orderBook.bids.slice(0, 8).map((bid, index) => (
+                          <TableRow key={index} sx={{ bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
+                            <TableCell>{formatCurrency(bid.price)}</TableCell>
+                            <TableCell align="right">{bid.remainingQuantity}</TableCell>
                           </TableRow>
                         ))}
+                        {orderBook.bids.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={2} align="center">
+                              <Typography variant="body2" color="text.secondary">
+                                No buy orders
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -413,25 +642,72 @@ const Trading = () => {
               <TableBody>
                 {recentTrades.map((trade, index) => (
                   <TableRow key={index}>
-                    <TableCell>{trade.time}</TableCell>
-                    <TableCell align="right">₹{trade.price}</TableCell>
+                    <TableCell>
+                      {new Date(trade.executedAt).toLocaleTimeString()}
+                    </TableCell>
+                    <TableCell align="right">{formatCurrency(trade.price)}</TableCell>
                     <TableCell align="right">{trade.quantity}</TableCell>
-                    <TableCell align="right">₹{(trade.price * trade.quantity).toLocaleString()}</TableCell>
+                    <TableCell align="right">{formatCurrency(trade.price * trade.quantity)}</TableCell>
                     <TableCell align="center">
                       <Chip
-                        label={trade.type.toUpperCase()}
+                        label={trade.transactionType?.toUpperCase() || 'TRADE'}
                         size="small"
-                        color={trade.type === 'buy' ? 'success' : 'error'}
+                        color="primary"
                         variant="outlined"
                       />
                     </TableCell>
                   </TableRow>
                 ))}
+                {recentTrades.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      <Typography variant="body2" color="text.secondary" py={2}>
+                        No recent trades available
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Order Confirmation Dialog */}
+      <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <Warning color="warning" sx={{ mr: 1 }} />
+            Confirm Order
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Please review your order details:
+          </Typography>
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography><strong>Bond:</strong> {bondData?.name}</Typography>
+            <Typography><strong>Type:</strong> {orderType.toUpperCase()} {priceType.toUpperCase()}</Typography>
+            <Typography><strong>Quantity:</strong> {quantity}</Typography>
+            <Typography><strong>Price:</strong> {priceType === 'market' ? 'Market Price' : formatCurrency(parseFloat(price))}</Typography>
+            <Typography><strong>Total Value:</strong> {formatCurrency(orderValue)}</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            This action cannot be undone. Are you sure you want to place this order?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={confirmOrder} 
+            variant="contained" 
+            color={orderType === 'buy' ? 'success' : 'error'}
+            disabled={submitting}
+          >
+            {submitting ? 'Placing...' : 'Confirm Order'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
