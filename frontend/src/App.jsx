@@ -11,6 +11,10 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
+// Layout Components
+import Navbar from './components/layout/Navbar';
+import Sidebar from './components/layout/Sidebar';
+
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -19,26 +23,17 @@ import Trading from './pages/Trading';
 import Portfolio from './pages/Portfolio';
 import Profile from './pages/Profile';
 
-// Layout Components
-import Navbar from './components/layout/Navbar';
-import Sidebar from './components/layout/Sidebar';
-
 // Hooks
 import { useAuth } from './hooks/useAuth';
 
 // Main App Content
 const AppContent = () => {
   const { user, loading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false); // Default closed
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        minHeight="100vh"
-      >
+      <Box display="flex" alignItems="center" justifyContent="center" minHeight="100vh">
         <LoadingSpinner />
       </Box>
     );
@@ -49,62 +44,65 @@ const AppContent = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
       <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
+      {/* FIXED MAIN CONTENT - PERFECT ALIGNMENT */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          pt: 8, // Account for navbar height
-          pl: { xs: 0, md: sidebarOpen ? 0 : 0 },
-          transition: 'padding-left 0.3s ease',
-          backgroundColor: '#f5f5f5',
+          pt: 8, // Fixed navbar height
+          px: 2, // Simple horizontal padding
+          backgroundColor: '#f8fafc',
           minHeight: '100vh',
+          width: '100%',
+          marginLeft: 0, // No margin
+          transition: 'none' // No transitions causing layout shifts
         }}
       >
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="/dashboard"
+          <Route 
+            path="/dashboard" 
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            }
+            } 
           />
-          <Route
-            path="/market"
+          <Route 
+            path="/market" 
             element={
               <ProtectedRoute>
                 <BondMarket />
               </ProtectedRoute>
-            }
+            } 
           />
-          <Route
-            path="/trading/:bondId?"
+          <Route 
+            path="/trading/:bondId?" 
             element={
               <ProtectedRoute>
                 <Trading />
               </ProtectedRoute>
-            }
+            } 
           />
-          <Route
-            path="/portfolio"
+          <Route 
+            path="/portfolio" 
             element={
               <ProtectedRoute>
                 <Portfolio />
               </ProtectedRoute>
-            }
+            } 
           />
-          <Route
-            path="/profile"
+          <Route 
+            path="/profile" 
             element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            }
+            } 
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

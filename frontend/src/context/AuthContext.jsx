@@ -16,12 +16,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const initializingRef = useRef(false); // Prevent multiple initialization calls
+  const [portfolio, setPortfolio] = useState([]);
+  const initializingRef = useRef(false);
 
   // Initialize auth on app start
   useEffect(() => {
     const initializeAuth = async () => {
-      if (initializingRef.current) return; // Prevent multiple calls
+      if (initializingRef.current) return;
       initializingRef.current = true;
 
       const savedToken = localStorage.getItem('token');
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }) => {
             setToken(savedToken);
           }
         } catch (error) {
-          console.error('Token verification failed:', error);
+          console.error('Token verification failed', error);
           localStorage.removeItem('token');
           setToken(null);
         }
@@ -52,11 +53,9 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
-        
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        
         toast.success('Login successful!');
         return { success: true };
       }
@@ -76,11 +75,9 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
-        
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        
         toast.success('Registration successful!');
         return { success: true };
       }
@@ -100,11 +97,9 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data.success) {
         const { token: authToken, user: userData } = response.data.data;
-        
         setToken(authToken);
         setUser(userData);
         localStorage.setItem('token', authToken);
-        
         toast.success('Demo login successful!');
         return { success: true };
       }
@@ -120,9 +115,139 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setPortfolio([]);
     localStorage.removeItem('token');
     toast.success('Logged out successfully');
   };
+
+  // REAL ORDER EXECUTION FUNCTION
+  const executeOrder = async (orderData) => {
+    try {
+      const { orderType, quantity, price, bondName, bondId } = orderData;
+      const totalValue = quantity * price;
+      const fees = totalValue * 0.002; // 0.2% fees
+      const netAmount = orderType === 'buy' ? totalValue + fees : totalValue - fees;
+
+      // Update user balance
+      const newBalance = orderType === 'buy' 
+        ? user.wallet.balance - netAmount
+        : user.wallet.balance + netAmount;
+
+      if (orderType === 'buy' && newBalance < 0) {
+        throw new Error('Insufficient balance');
+      }
+
+      // Update user state
+      const updatedUser = {
+        ...user,
+        wallet: {
+          ...user.wallet,
+          balance: newBalance
+        }
+      };
+      setUser(updatedUser);
+
+      // Update portfolio
+      const existingHolding = portfolio.find(holding => holding.bondId === bondId);
+      let newPortfolio;
+
+      if (orderType === 'buy') {
+        if (existingHolding) {
+          // Update existing holding
+          const newQuantity = existingHolding.quantity + quantity;
+          const newTotalInvested = existingHolding.totalInvested + totalValue;
+          
+          newPortfolio = portfolio.map(holding =>
+            holding.bondId === bondId
+              ? {
+                  ...holding,
+                  quantity: newQuantity,
+                  totalInvested: newTotalInvested,
+                  avgPrice: newTotalInvested / newQuantity
+                }
+              : holding
+          );
+        } else {
+          // Create new holding
+          newPortfolio = [
+            ...portfolio,
+            {
+              id: Date.now(),
+              bondId,
+              bondName,
+              quantity,
+              totalInvested: totalValue,
+              avgPrice: price,
+              purchaseDate: new Date(),
+              currentPrice: price
+            }
+          ];
+        }
+      } else {
+        // Sell order
+        if (existingHolding && existingHolding.quantity >= quantity) {
+          const newQuantity = existingHolding.quantity - quantity;
+          
+          if (newQuantity === 0) {
+            // Remove holding completely
+            newPortfolio = portfolio.filter(holding => holding.bondId !== bondId);
+          } else {
+            // Update holding
+            const soldValue = (existingHolding.totalInvested / existingHolding.quantity) * quantity;
+            newPortfolio = portfolio.map(holding =>
+              holding.bondId === bondId
+                ? {
+                    ...holding,
+                    quantity: newQuantity,
+                    totalInvested: existingHolding.totalInvested - soldValue
+                  }
+                : holding
+            );
+          }
+        } else {
+          throw new Error('Insufficient holdings to sell');
+        }
+      }
+
+      setPortfolio(newPortfolio);
+
+      // Store in localStorage for persistence
+      localStorage.setItem('userPortfolio', JSON.stringify(newPortfolio));
+      localStorage.setItem('userBalance', newBalance.toString());
+
+      return {
+        success: true,
+        orderId: `ORD${Date.now()}`,
+        executedQuantity: quantity,
+        executedPrice: price,
+        newBalance
+      };
+
+    } catch (error) {
+      console.error('Order execution error:', error);
+      throw error;
+    }
+  };
+
+  // Load portfolio from localStorage on init
+  useEffect(() => {
+    const savedPortfolio = localStorage.getItem('userPortfolio');
+    const savedBalance = localStorage.getItem('userBalance');
+    
+    if (savedPortfolio) {
+      setPortfolio(JSON.parse(savedPortfolio));
+    }
+    
+    if (savedBalance && user) {
+      setUser(prev => ({
+        ...prev,
+        wallet: {
+          ...prev.wallet,
+          balance: parseFloat(savedBalance)
+        }
+      }));
+    }
+  }, [user?.id]);
 
   const updateUser = async (userData) => {
     try {
@@ -148,7 +273,7 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data.data.user);
       }
     } catch (error) {
-      console.error('Failed to refresh user data:', error);
+      console.error('Failed to refresh user data', error);
     }
   };
 
@@ -156,12 +281,14 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
+    portfolio,
     login,
     register,
     demoLogin,
     logout,
     updateUser,
     refreshUserData,
+    executeOrder // Add this new function
   };
 
   return (

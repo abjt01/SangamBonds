@@ -1,276 +1,164 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Grid,
   Card,
   CardContent,
   Typography,
-  TextField,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Alert,
+  Tabs,
+  Tab,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
-  TableContainer,
   Chip,
-  Alert,
-  Divider,
   IconButton,
-  Tabs,
-  Tab,
-  Avatar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Skeleton,
+  Paper,
+  Container
 } from '@mui/material';
-import {
-  TrendingUp,
-  TrendingDown,
-  Refresh,
-  SwapVert,
-  Timeline,
-  BookmarkBorder,
-  Info,
-  CheckCircle,
-  Warning,
+import { 
+  ArrowBack, 
+  Refresh, 
+  TrendingUp, 
+  TrendingDown, 
+  Cancel,
+  ShoppingCart
 } from '@mui/icons-material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { bondsAPI, ordersAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import OrderBook from '../components/trading/OrderBook';
+import OrderForm from '../components/trading/OrderForm';
+import TradingChart from '../components/trading/TradingChart';
 import toast from 'react-hot-toast';
 
 const Trading = () => {
   const { bondId } = useParams();
   const navigate = useNavigate();
-  const { user, refreshUserData } = useAuth();
-  
+  const { user } = useAuth();
+
   // State
-  const [selectedBond, setSelectedBond] = useState(bondId || '');
-  const [bondData, setBondData] = useState(null);
-  const [orderBook, setOrderBook] = useState({ bids: [], asks: [] });
-  const [recentTrades, setRecentTrades] = useState([]);
-  const [priceChart, setPriceChart] = useState([]);
+  const [bond, setBond] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedPrice, setSelectedPrice] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
   
-  // Order Form State
-  const [orderType, setOrderType] = useState('buy');
-  const [priceType, setPriceType] = useState('market');
-  const [quantity, setQuantity] = useState('');
-  const [price, setPrice] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Available bonds for selection
-  const [availableBonds, setAvailableBonds] = useState([]);
+  // Orders and trades
+  const [userOrders, setUserOrders] = useState([]);
+  const [recentTrades, setRecentTrades] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
-  const fetchBondData = async (bondIdToFetch) => {
+  useEffect(() => {
+    if (bondId) {
+      fetchBondDetails();
+      fetchUserOrders();
+      fetchRecentTrades();
+    }
+  }, [bondId]);
+
+  const fetchBondDetails = async () => {
     try {
-      const response = await bondsAPI.getBondById(bondIdToFetch);
-      if (response.data.success) {
-        setBondData(response.data.data.bond);
-        setPrice(response.data.data.bond.currentPrice.toString());
-      }
+      setLoading(true);
+      setError(null);
+      
+      // Mock bond data for now
+      const mockBond = {
+        bondId: bondId,
+        name: `SangamBond ${bondId}`,
+        symbol: `SB${bondId}`,
+        sector: 'Banking & Financial Services',
+        currentPrice: 1025.50 + (Math.random() - 0.5) * 50,
+        priceChange: {
+          absolute: 15.50 + (Math.random() - 0.5) * 30,
+          percentage: 1.54 + (Math.random() - 0.5) * 3
+        },
+        currentYield: 6.63,
+        availableTokens: 95000,
+        totalTokens: 150000,
+        rating: { value: 'AAA', agency: 'CRISIL' },
+        couponRate: 6.8,
+        volume: { today: 2500 }
+      };
+      
+      setBond(mockBond);
     } catch (error) {
-      console.error('Error fetching bond data:', error);
-      toast.error('Failed to load bond data');
+      console.error('Error fetching bond details:', error);
+      setError('Failed to load bond details');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchOrderBook = async (bondIdToFetch) => {
+  const fetchUserOrders = async () => {
     try {
-      const response = await ordersAPI.getOrderBook(bondIdToFetch, 10);
-      if (response.data.success) {
-        setOrderBook(response.data.data);
-      }
+      setOrdersLoading(true);
+      // Mock orders data
+      const mockOrders = [
+        {
+          orderId: 'ORD001',
+          orderType: 'buy',
+          quantity: 100,
+          price: 1020,
+          totalValue: 102000,
+          status: 'open',
+          placedAt: new Date(),
+          filledQuantity: 0
+        },
+        {
+          orderId: 'ORD002',
+          orderType: 'sell',
+          quantity: 50,
+          price: 1030,
+          totalValue: 51500,
+          status: 'partial',
+          placedAt: new Date(Date.now() - 3600000),
+          filledQuantity: 25
+        }
+      ];
+      
+      setUserOrders(mockOrders);
     } catch (error) {
-      console.error('Error fetching order book:', error);
+      console.error('Error fetching user orders:', error);
+    } finally {
+      setOrdersLoading(false);
     }
   };
 
-  const fetchRecentTrades = async (bondIdToFetch) => {
+  const fetchRecentTrades = async () => {
     try {
-      const response = await ordersAPI.getRecentTrades(bondIdToFetch, 20);
-      if (response.data.success) {
-        setRecentTrades(response.data.data);
-      }
+      // Mock recent trades
+      const mockTrades = [
+        { price: 1025.50, quantity: 100, totalValue: 102550, executedAt: new Date() },
+        { price: 1024.75, quantity: 200, totalValue: 204950, executedAt: new Date(Date.now() - 300000) },
+        { price: 1026.00, quantity: 150, totalValue: 153900, executedAt: new Date(Date.now() - 600000) }
+      ];
+      
+      setRecentTrades(mockTrades);
     } catch (error) {
       console.error('Error fetching recent trades:', error);
     }
   };
 
-  const fetchAvailableBonds = async () => {
+  const handleOrderPlaced = (orderData) => {
+    fetchUserOrders();
+    fetchBondDetails();
+    toast.success('Order placed successfully!');
+  };
+
+  const handleCancelOrder = async (orderId) => {
     try {
-      const response = await bondsAPI.getAllBonds({ limit: 50 });
-      if (response.data.success) {
-        setAvailableBonds(response.data.data.bonds);
-      }
+      toast.success('Order cancelled successfully');
+      fetchUserOrders();
     } catch (error) {
-      console.error('Error fetching available bonds:', error);
+      toast.error('Failed to cancel order');
     }
   };
-
-  const generateMockPriceChart = (currentPrice) => {
-    const data = [];
-    let basePrice = currentPrice * 0.98;
-    
-    for (let i = 0; i < 24; i++) {
-      const time = `${9 + Math.floor(i / 4)}:${(i % 4) * 15 || '00'}`;
-      basePrice += (Math.random() - 0.5) * currentPrice * 0.005;
-      data.push({
-        time,
-        price: Math.max(basePrice, currentPrice * 0.95)
-      });
-    }
-    
-    data[data.length - 1].price = currentPrice;
-    return data;
-  };
-
-  useEffect(() => {
-    const initializeTrading = async () => {
-      setLoading(true);
-      
-      // Get available bonds first
-      await fetchAvailableBonds();
-      
-      const bondToLoad = bondId || 'HDFC001';
-      setSelectedBond(bondToLoad);
-      
-      await Promise.all([
-        fetchBondData(bondToLoad),
-        fetchOrderBook(bondToLoad),
-        fetchRecentTrades(bondToLoad)
-      ]);
-      
-      setLoading(false);
-    };
-
-    initializeTrading();
-  }, [bondId]);
-
-  useEffect(() => {
-    if (bondData) {
-      setPriceChart(generateMockPriceChart(bondData.currentPrice));
-    }
-  }, [bondData]);
-
-  const handleBondChange = async (newBondId) => {
-    setSelectedBond(newBondId);
-    setLoading(true);
-    
-    await Promise.all([
-      fetchBondData(newBondId),
-      fetchOrderBook(newBondId),
-      fetchRecentTrades(newBondId)
-    ]);
-    
-    navigate(`/trading/${newBondId}`, { replace: true });
-    setLoading(false);
-  };
-
-  const validateOrder = () => {
-    if (!quantity || parseInt(quantity) <= 0) {
-      toast.error('Please enter a valid quantity');
-      return false;
-    }
-
-    if (priceType === 'limit' && (!price || parseFloat(price) <= 0)) {
-      toast.error('Please enter a valid price');
-      return false;
-    }
-
-    if (user?.kycStatus !== 'verified') {
-      const orderValue = parseInt(quantity) * (priceType === 'market' ? bondData.currentPrice : parseFloat(price));
-      if (orderValue > 10000) {
-        toast.error('KYC verification required for orders above ₹10,000');
-        return false;
-      }
-    }
-
-    if (orderType === 'buy') {
-      const orderValue = parseInt(quantity) * (priceType === 'market' ? bondData.currentPrice : parseFloat(price));
-      if (user.wallet.balance < orderValue) {
-        toast.error('Insufficient balance');
-        return false;
-      }
-
-      if (bondData.availableTokens < parseInt(quantity)) {
-        toast.error('Insufficient tokens available');
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  const handleOrderSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateOrder()) {
-      return;
-    }
-
-    setConfirmDialog(true);
-  };
-
-  const confirmOrder = async () => {
-    try {
-      setSubmitting(true);
-      setConfirmDialog(false);
-
-      const orderData = {
-        bondId: selectedBond,
-        orderType,
-        orderSubType: priceType,
-        quantity: parseInt(quantity),
-        price: priceType === 'limit' ? parseFloat(price) : undefined,
-        timeInForce: 'GTC'
-      };
-
-      const response = await ordersAPI.placeOrder(orderData);
-      
-      if (response.data.success) {
-        toast.success('Order placed successfully!');
-        
-        // Reset form
-        setQuantity('');
-        if (priceType === 'limit') {
-          setPrice(bondData.currentPrice.toString());
-        }
-        
-        // Refresh data
-        await Promise.all([
-          fetchBondData(selectedBond),
-          fetchOrderBook(selectedBond),
-          refreshUserData()
-        ]);
-      }
-    } catch (error) {
-      const message = error.response?.data?.message || 'Failed to place order';
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const maxQuantity = orderType === 'buy' 
-    ? Math.min(
-        Math.floor(user?.wallet?.balance / (priceType === 'market' ? bondData?.currentPrice || 1 : parseFloat(price) || 1)),
-        bondData?.availableTokens || 0
-      )
-    : 1000; // For sell orders, this would come from user's holdings
-
-  const orderValue = quantity && bondData 
-    ? parseInt(quantity) * (priceType === 'limit' ? parseFloat(price || 0) : bondData.currentPrice)
-    : 0;
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -280,435 +168,354 @@ const Trading = () => {
     }).format(amount);
   };
 
-  if (loading && !bondData) {
+  const formatDateTime = (date) => {
+    return new Date(date).toLocaleString('en-IN', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'filled': return 'success';
+      case 'partial': return 'warning';
+      case 'open': return 'info';
+      case 'cancelled': return 'error';
+      default: return 'default';
+    }
+  };
+
+  if (loading) {
     return (
-      <Box p={3}>
-        <Typography variant="h4" gutterBottom>Trading</Typography>
+      <Container maxWidth="xl" sx={{ py: 2 }}>
+        <Skeleton height={60} sx={{ mb: 2 }} />
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
-            <Skeleton variant="rectangular" height={300} />
+          <Grid item xs={12} lg={8}>
+            <Skeleton height={300} sx={{ mb: 2 }} />
+            <Skeleton height={400} />
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Skeleton variant="rectangular" height={400} sx={{ mb: 2 }} />
-            <Skeleton variant="rectangular" height={300} />
+          <Grid item xs={12} lg={4}>
+            <Skeleton height={500} />
           </Grid>
         </Grid>
-      </Box>
+      </Container>
+    );
+  }
+
+  if (error || !bond) {
+    return (
+      <Container maxWidth="xl" sx={{ py: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error || 'Bond not found'}
+        </Alert>
+        <Button
+          startIcon={<ArrowBack />}
+          onClick={() => navigate('/market')}
+        >
+          Back to Market
+        </Button>
+      </Container>
     );
   }
 
   return (
-    <Box p={3}>
+    <Container maxWidth="xl" sx={{ py: 2 }}>
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            Trading 📊
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Trade corporate bonds with real-time order matching
-          </Typography>
+        <Box display="flex" alignItems="center" gap={2}>
+          <IconButton 
+            onClick={() => navigate('/market')}
+            sx={{ bgcolor: 'white', boxShadow: 1 }}
+          >
+            <ArrowBack />
+          </IconButton>
+          <Box>
+            <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+              {bond.name}
+            </Typography>
+            <Typography variant="h6" sx={{ color: '#374151 !important' }}>
+              {bond.symbol} • {bond.sector}
+            </Typography>
+          </Box>
         </Box>
-        <Box>
-          <FormControl sx={{ minWidth: 200, mr: 2 }}>
-            <InputLabel>Select Bond</InputLabel>
-            <Select
-              value={selectedBond}
-              label="Select Bond"
-              onChange={(e) => handleBondChange(e.target.value)}
-              size="small"
-            >
-              {availableBonds.map((bond) => (
-                <MenuItem key={bond.bondId} value={bond.bondId}>
-                  {bond.symbol} - {bond.name.substring(0, 20)}...
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button variant="outlined" startIcon={<Refresh />}>
-            Refresh Data
-          </Button>
-        </Box>
+        <Button
+          startIcon={<Refresh />}
+          onClick={fetchBondDetails}
+          variant="outlined"
+          sx={{ bgcolor: 'white' }}
+        >
+          Refresh
+        </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {/* Left Panel - Bond Info & Chart */}
-        <Grid item xs={12} md={8}>
-          {/* Bond Info Card */}
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box display="flex" alignItems="center">
-                  <Avatar sx={{ width: 50, height: 50, mr: 2, bgcolor: 'primary.light' }}>
-                    {bondData?.symbol?.substring(0, 2) || 'NA'}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" fontWeight="bold">
-                      {bondData?.name || 'Loading...'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {bondData?.symbol} • {bondData?.couponRate}% • {bondData?.rating?.value}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box textAlign="right">
-                  <Typography variant="h5" fontWeight="bold">
-                    {bondData ? formatCurrency(bondData.currentPrice) : '---'}
-                  </Typography>
-                  <Box display="flex" alignItems="center">
-                    {bondData?.priceChange?.percentage >= 0 ? (
-                      <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
-                    ) : (
-                      <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
-                    )}
-                    <Typography
-                      color={bondData?.priceChange?.percentage >= 0 ? 'success.main' : 'error.main'}
-                      fontWeight="medium"
-                    >
-                      {bondData?.priceChange?.percentage >= 0 ? '+' : ''}{bondData?.priceChange?.percentage?.toFixed(2) || '0.00'}%
-                      ({bondData?.priceChange?.percentage >= 0 ? '+' : ''}{formatCurrency(bondData?.priceChange?.absolute || 0)})
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-              <Grid container spacing={2} mt={1}>
-                <Grid item xs={3}>
-                  <Typography variant="caption" color="text.secondary">Day High</Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {bondData ? formatCurrency(bondData.currentPrice * 1.02) : '---'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="caption" color="text.secondary">Day Low</Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {bondData ? formatCurrency(bondData.currentPrice * 0.98) : '---'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="caption" color="text.secondary">Volume</Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {bondData?.volume?.today?.toLocaleString() || '0'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={3}>
-                  <Typography variant="caption" color="text.secondary">Yield</Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {bondData?.currentYield?.toFixed(2) || '0.00'}%
-                  </Typography>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Price Chart */}
-          <Card>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6">Price Chart</Typography>
-                <Box>
-                  <Button size="small" variant="outlined" sx={{ mr: 1 }}>1D</Button>
-                  <Button size="small">5D</Button>
-                  <Button size="small" sx={{ ml: 1 }}>1M</Button>
-                </Box>
-              </Box>
-              <Box height={300}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={priceChart}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis domain={['dataMin - 5', 'dataMax + 5']} />
-                    <Tooltip formatter={(value) => [formatCurrency(value), 'Price']} />
-                    <Line
-                      type="monotone"
-                      dataKey="price"
-                      stroke="#1976d2"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Right Panel - Order Form & Order Book */}
-        <Grid item xs={12} md={4}>
-          {/* Order Form */}
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Place Order
+      {/* Bond Summary */}
+      <Card sx={{ mb: 3, bgcolor: 'white', boxShadow: 3 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Grid container spacing={4}>
+            <Grid item xs={6} md={3}>
+              <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                Current Price
               </Typography>
-              
-              {user?.kycStatus !== 'verified' && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
-                    KYC verification required for orders above ₹10,000
-                  </Typography>
-                </Alert>
-              )}
-              
-              <Box component="form" onSubmit={handleOrderSubmit}>
-                <Tabs
-                  value={orderType}
-                  onChange={(e, newValue) => setOrderType(newValue)}
-                  sx={{ mb: 2 }}
-                >
-                  <Tab label="Buy" value="buy" sx={{ minWidth: 80 }} />
-                  <Tab label="Sell" value="sell" sx={{ minWidth: 80 }} />
-                </Tabs>
-
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Order Type</InputLabel>
-                  <Select
-                    value={priceType}
-                    label="Order Type"
-                    onChange={(e) => setPriceType(e.target.value)}
-                  >
-                    <MenuItem value="market">Market Order</MenuItem>
-                    <MenuItem value="limit">Limit Order</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  helperText={`Max: ${maxQuantity.toLocaleString()}`}
-                  sx={{ mb: 2 }}
-                  inputProps={{ min: 1, max: maxQuantity }}
-                />
-
-                {priceType === 'limit' && (
-                  <TextField
-                    fullWidth
-                    label="Price"
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    InputProps={{
-                      startAdornment: '₹',
-                    }}
-                    sx={{ mb: 2 }}
-                    inputProps={{ min: 0, step: 0.01 }}
-                  />
-                )}
-
-                <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Order Value: {formatCurrency(orderValue)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Available Balance: {formatCurrency(user?.wallet?.balance || 0)}
-                  </Typography>
-                  {orderType === 'buy' && orderValue > (user?.wallet?.balance || 0) && (
-                    <Typography variant="body2" color="error.main">
-                      Insufficient balance
-                    </Typography>
-                  )}
-                </Box>
-
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  color={orderType === 'buy' ? 'success' : 'error'}
-                  disabled={!quantity || (priceType === 'limit' && !price) || submitting}
-                  size="large"
-                >
-                  {submitting 
-                    ? 'Placing Order...' 
-                    : `${orderType === 'buy' ? 'Buy' : 'Sell'} ${bondData?.symbol || ''}`
-                  }
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Order Book */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Order Book
+              <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                {formatCurrency(bond.currentPrice)}
               </Typography>
-              <Grid container spacing={1}>
-                {/* Asks (Sell Orders) */}
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="error.main" gutterBottom>
-                    Asks (Sell)
-                  </Typography>
-                  <TableContainer sx={{ maxHeight: 200 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Price</TableCell>
-                          <TableCell align="right">Qty</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {orderBook.asks.slice(0, 8).reverse().map((ask, index) => (
-                          <TableRow key={index} sx={{ bgcolor: 'rgba(244, 67, 54, 0.05)' }}>
-                            <TableCell>{formatCurrency(ask.price)}</TableCell>
-                            <TableCell align="right">{ask.remainingQuantity}</TableCell>
-                          </TableRow>
-                        ))}
-                        {orderBook.asks.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={2} align="center">
-                              <Typography variant="body2" color="text.secondary">
-                                No sell orders
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Grid>
-
-                {/* Spread */}
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }}>
-                    <Chip
-                      label={orderBook.asks[0] && orderBook.bids[0] 
-                        ? `Spread: ${formatCurrency(orderBook.asks[0].price - orderBook.bids[0].price)}`
-                        : 'No spread data'
-                      }
-                      size="small"
-                    />
-                  </Divider>
-                </Grid>
-
-                {/* Bids (Buy Orders) */}
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="success.main" gutterBottom>
-                    Bids (Buy)
-                  </Typography>
-                  <TableContainer sx={{ maxHeight: 200 }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Price</TableCell>
-                          <TableCell align="right">Qty</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {orderBook.bids.slice(0, 8).map((bid, index) => (
-                          <TableRow key={index} sx={{ bgcolor: 'rgba(76, 175, 80, 0.05)' }}>
-                            <TableCell>{formatCurrency(bid.price)}</TableCell>
-                            <TableCell align="right">{bid.remainingQuantity}</TableCell>
-                          </TableRow>
-                        ))}
-                        {orderBook.bids.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={2} align="center">
-                              <Typography variant="body2" color="text.secondary">
-                                No buy orders
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Recent Trades */}
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent Trades
-          </Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Time</TableCell>
-                  <TableCell align="right">Price</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Value</TableCell>
-                  <TableCell align="center">Type</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {recentTrades.map((trade, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      {new Date(trade.executedAt).toLocaleTimeString()}
-                    </TableCell>
-                    <TableCell align="right">{formatCurrency(trade.price)}</TableCell>
-                    <TableCell align="right">{trade.quantity}</TableCell>
-                    <TableCell align="right">{formatCurrency(trade.price * trade.quantity)}</TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={trade.transactionType?.toUpperCase() || 'TRADE'}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {recentTrades.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      <Typography variant="body2" color="text.secondary" py={2}>
-                        No recent trades available
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              <Box display="flex" alignItems="center" gap={1} mt={1}>
+                {bond.priceChange?.absolute >= 0 ? 
+                  <TrendingUp color="success" fontSize="small" /> :
+                  <TrendingDown color="error" fontSize="small" />
+                }
+                <Typography 
+                  variant="body1" 
+                  fontWeight="medium"
+                  sx={{ 
+                    color: bond.priceChange?.absolute >= 0 ? '#15803d !important' : '#dc2626 !important'
+                  }}
+                >
+                  {bond.priceChange?.absolute >= 0 ? '+' : ''}
+                  {bond.priceChange?.absolute?.toFixed(2)} 
+                  ({bond.priceChange?.percentage?.toFixed(2)}%)
+                </Typography>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={6} md={3}>
+              <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                Current Yield
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                {bond.currentYield?.toFixed(2)}%
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={6} md={3}>
+              <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                Available Fragments
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                {bond.availableTokens?.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#374151 !important' }}>
+                of {bond.totalTokens?.toLocaleString()}
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={6} md={3}>
+              <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                Rating
+              </Typography>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                {bond.rating?.value}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#374151 !important' }}>
+                by {bond.rating?.agency}
+              </Typography>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
-      {/* Order Confirmation Dialog */}
-      <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
-        <DialogTitle>
-          <Box display="flex" alignItems="center">
-            <Warning color="warning" sx={{ mr: 1 }} />
-            Confirm Order
+      <Grid container spacing={3}>
+        {/* Left Panel - Chart and Orders */}
+        <Grid item xs={12} lg={8}>
+          {/* Trading Chart */}
+          <Card sx={{ mb: 3, bgcolor: 'white', boxShadow: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <TradingChart bondId={bondId} />
+            </CardContent>
+          </Card>
+
+          {/* Orders and Trades Tabs */}
+          <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#f9fafb' }}>
+              <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
+                <Tab 
+                  label="My Orders" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: '#000000 !important',
+                    '&.Mui-selected': { color: '#3b82f6 !important' }
+                  }}
+                />
+                <Tab 
+                  label="Recent Trades"
+                  sx={{ 
+                    fontWeight: 600,
+                    color: '#000000 !important',
+                    '&.Mui-selected': { color: '#3b82f6 !important' }
+                  }}
+                />
+              </Tabs>
+            </Box>
+
+            {/* Tab Content */}
+            <CardContent sx={{ p: 3 }}>
+              {activeTab === 0 ? (
+                // My Orders Tab
+                <Box>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h6" sx={{ color: '#000000 !important', fontWeight: 700 }}>
+                      My Orders
+                    </Typography>
+                    <Button
+                      startIcon={<Refresh />}
+                      onClick={fetchUserOrders}
+                      size="small"
+                      variant="outlined"
+                    >
+                      Refresh
+                    </Button>
+                  </Box>
+
+                  {ordersLoading ? (
+                    [...Array(3)].map((_, i) => (
+                      <Skeleton key={i} height={60} sx={{ mb: 1 }} />
+                    ))
+                  ) : userOrders.length === 0 ? (
+                    <Alert severity="info">
+                      You have no orders for this bond
+                    </Alert>
+                  ) : (
+                    <TableContainer component={Paper} sx={{ boxShadow: 1 }}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 700, color: '#000000 !important' }}>Type</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Quantity</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Price</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Total</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Status</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Time</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {userOrders.map((order) => (
+                            <TableRow key={order.orderId} hover>
+                              <TableCell>
+                                <Chip
+                                  label={order.orderType.toUpperCase()}
+                                  size="small"
+                                  color={order.orderType === 'buy' ? 'success' : 'error'}
+                                  variant="filled"
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              </TableCell>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {order.filledQuantity > 0 && (
+                                  <Typography variant="body2" sx={{ color: '#374151 !important' }}>
+                                    {order.filledQuantity}/
+                                  </Typography>
+                                )}
+                                {order.quantity.toLocaleString()}
+                              </TableCell>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {formatCurrency(order.price)}
+                              </TableCell>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {formatCurrency(order.totalValue)}
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={order.status.toUpperCase()}
+                                  size="small"
+                                  color={getStatusColor(order.status)}
+                                  variant="filled"
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" sx={{ color: '#000000 !important' }}>
+                                  {formatDateTime(order.placedAt)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                {['open', 'partial'].includes(order.status) && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleCancelOrder(order.orderId)}
+                                    color="error"
+                                  >
+                                    <Cancel />
+                                  </IconButton>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </Box>
+              ) : (
+                // Recent Trades Tab
+                <Box>
+                  <Typography variant="h6" gutterBottom sx={{ color: '#000000 !important', fontWeight: 700 }}>
+                    Recent Trades
+                  </Typography>
+
+                  {recentTrades.length === 0 ? (
+                    <Alert severity="info">
+                      No recent trades for this bond
+                    </Alert>
+                  ) : (
+                    <TableContainer component={Paper} sx={{ boxShadow: 1 }}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Price</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Quantity</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Value</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Time</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {recentTrades.map((trade, index) => (
+                            <TableRow key={index} hover>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {formatCurrency(trade.price)}
+                              </TableCell>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {trade.quantity.toLocaleString()}
+                              </TableCell>
+                              <TableCell align="right" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                                {formatCurrency(trade.totalValue)}
+                              </TableCell>
+                              <TableCell align="center">
+                                <Typography variant="body2" sx={{ color: '#000000 !important' }}>
+                                  {formatDateTime(trade.executedAt)}
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Right Panel - Order Book and Order Form */}
+        <Grid item xs={12} lg={4}>
+          {/* Order Book */}
+          <Box mb={3}>
+            <OrderBook
+              bondId={bondId}
+              onPriceSelect={setSelectedPrice}
+            />
           </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Please review your order details:
-          </Typography>
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-            <Typography><strong>Bond:</strong> {bondData?.name}</Typography>
-            <Typography><strong>Type:</strong> {orderType.toUpperCase()} {priceType.toUpperCase()}</Typography>
-            <Typography><strong>Quantity:</strong> {quantity}</Typography>
-            <Typography><strong>Price:</strong> {priceType === 'market' ? 'Market Price' : formatCurrency(parseFloat(price))}</Typography>
-            <Typography><strong>Total Value:</strong> {formatCurrency(orderValue)}</Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            This action cannot be undone. Are you sure you want to place this order?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog(false)}>Cancel</Button>
-          <Button 
-            onClick={confirmOrder} 
-            variant="contained" 
-            color={orderType === 'buy' ? 'success' : 'error'}
-            disabled={submitting}
-          >
-            {submitting ? 'Placing...' : 'Confirm Order'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+
+          {/* Order Form */}
+          <OrderForm
+            bond={bond}
+            onOrderPlaced={handleOrderPlaced}
+            selectedPrice={selectedPrice}
+          />
+        </Grid>
+      </Grid>
+    </Container>
   );
 };
 
