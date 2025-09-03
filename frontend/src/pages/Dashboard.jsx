@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Grid,
@@ -34,30 +34,101 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { portfolioAPI, bondsAPI, ordersAPI } from '../services/api';
+import { bondsAPI, ordersAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user, refreshUserData } = useAuth();
+  const { user, portfolio, refreshUserData } = useAuth(); // Use portfolio from context
   const navigate = useNavigate();
-  const [portfolioData, setPortfolioData] = useState(null);
   const [marketData, setMarketData] = useState(null);
   const [orderStats, setOrderStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch dashboard data
+  // Calculate portfolio data from context instead of API call
+  const portfolioData = useMemo(() => {
+    if (!portfolio || portfolio.length === 0) {
+      return {
+        summary: {
+          totalMarketValue: 0,
+          totalPnL: 0,
+          totalPnLPercentage: 0,
+          totalInvested: 0
+        },
+        performanceHistory: [],
+        sectorAllocation: [],
+        recentTransactions: []
+      };
+    }
+
+    let totalInvested = 0;
+    let totalCurrentValue = 0;
+    const sectorMap = new Map();
+    
+    // Calculate current values and sector allocation
+    portfolio.forEach(holding => {
+      totalInvested += holding.totalInvested;
+      
+      // Simulate current price (in real app, you'd get this from market data)
+      const priceChange = (Math.random() - 0.5) * 0.1; // ±5% change
+      const currentPrice = holding.avgPrice * (1 + priceChange);
+      const currentValue = holding.quantity * currentPrice;
+      totalCurrentValue += currentValue;
+      
+      // Sector allocation (simplified - you'd get actual sector from bond data)
+      const sector = 'Banking & Financial Services'; // Mock sector
+      sectorMap.set(sector, (sectorMap.get(sector) || 0) + currentValue);
+    });
+
+    const totalPnL = totalCurrentValue - totalInvested;
+    const totalPnLPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+
+    // Create sector allocation array
+    const sectorAllocation = Array.from(sectorMap.entries()).map(([name, value], index) => ({
+      name,
+      value: Math.round((value / totalCurrentValue) * 100),
+      color: ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#f57c00'][index % 5]
+    }));
+
+    // Generate mock performance history
+    const performanceHistory = Array.from({ length: 30 }, (_, i) => ({
+      date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      value: totalCurrentValue * (0.95 + Math.random() * 0.1),
+      invested: totalInvested
+    }));
+
+    // Generate mock recent transactions from portfolio
+    const recentTransactions = portfolio.slice(0, 5).map((holding, index) => ({
+      id: `txn_${index}`,
+      type: 'BUY',
+      bondName: holding.bondName,
+      quantity: holding.quantity,
+      price: holding.avgPrice,
+      value: holding.totalInvested,
+      date: holding.purchaseDate || new Date(),
+      status: 'completed'
+    }));
+
+    return {
+      summary: {
+        totalMarketValue: Math.round(totalCurrentValue),
+        totalPnL: Math.round(totalPnL),
+        totalPnLPercentage: Math.round(totalPnLPercentage * 100) / 100,
+        totalInvested: Math.round(totalInvested)
+      },
+      performanceHistory,
+      sectorAllocation,
+      recentTransactions
+    };
+  }, [portfolio]);
+
+  // Fetch additional dashboard data (not portfolio-related)
   const fetchDashboardData = async () => {
     try {
-      const [portfolioResponse, marketResponse, orderStatsResponse] = await Promise.all([
-        portfolioAPI.getPortfolio(),
+      const [marketResponse, orderStatsResponse] = await Promise.all([
         bondsAPI.getMarketOverview(),
         ordersAPI.getOrderStats()
       ]);
-
-      if (portfolioResponse.data.success) {
-        setPortfolioData(portfolioResponse.data.data);
-      }
 
       if (marketResponse.data.success) {
         setMarketData(marketResponse.data.data);
@@ -68,7 +139,7 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error('Failed to load market data');
     } finally {
       setLoading(false);
     }
@@ -159,7 +230,7 @@ const Dashboard = () => {
             variant="contained" 
             startIcon={<Add />} 
             sx={{ mr: 1 }}
-            onClick={() => navigate('/trading')}
+            onClick={() => navigate('/market')}
           >
             New Order
           </Button>
@@ -200,8 +271,8 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Portfolio Value"
-            value={portfolioData ? formatCurrency(portfolioData.summary.totalMarketValue) : formatCurrency(0)}
-            change={portfolioData?.summary.totalPnLPercentage}
+            value={formatCurrency(portfolioData.summary.totalMarketValue)}
+            change={portfolioData.summary.totalPnLPercentage}
             icon={<AccountBalance />}
             color="primary"
             isLoading={loading}
@@ -210,10 +281,10 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total P&L"
-            value={portfolioData ? formatCurrency(portfolioData.summary.totalPnL) : formatCurrency(0)}
-            change={portfolioData?.summary.totalPnLPercentage}
+            value={formatCurrency(portfolioData.summary.totalPnL)}
+            change={portfolioData.summary.totalPnLPercentage}
             icon={<TrendingUp />}
-            color={portfolioData?.summary.totalPnL >= 0 ? "success" : "error"}
+            color={portfolioData.summary.totalPnL >= 0 ? "success" : "error"}
             isLoading={loading}
           />
         </Grid>
@@ -252,7 +323,7 @@ const Dashboard = () => {
                   <Skeleton variant="rectangular" width="100%" height={300} />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={portfolioData?.performanceHistory || []}>
+                    <LineChart data={portfolioData.performanceHistory}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />
@@ -290,13 +361,13 @@ const Dashboard = () => {
                 Asset Allocation
               </Typography>
               <Box height={250}>
-                {loading ? (
+                {loading || portfolioData.sectorAllocation.length === 0 ? (
                   <Skeleton variant="circular" width={200} height={200} sx={{ mx: 'auto' }} />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={portfolioData?.sectorAllocation || []}
+                        data={portfolioData.sectorAllocation}
                         cx="50%"
                         cy="50%"
                         outerRadius={80}
@@ -304,7 +375,7 @@ const Dashboard = () => {
                         dataKey="value"
                         label={({ name, value }) => `${value}%`}
                       >
-                        {portfolioData?.sectorAllocation?.map((entry, index) => (
+                        {portfolioData.sectorAllocation.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -322,7 +393,7 @@ const Dashboard = () => {
                     </Box>
                   ))
                 ) : (
-                  portfolioData?.sectorAllocation?.map((item) => (
+                  portfolioData.sectorAllocation.map((item) => (
                     <Box key={item.name} display="flex" alignItems="center" mb={1}>
                       <Box
                         width={12}
@@ -389,7 +460,7 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {portfolioData?.recentTransactions?.slice(0, 5).map((transaction) => (
+                  {portfolioData.recentTransactions.map((transaction) => (
                     <TableRow key={transaction.id} hover>
                       <TableCell>
                         <Chip
@@ -417,7 +488,7 @@ const Dashboard = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {(!portfolioData?.recentTransactions || portfolioData.recentTransactions.length === 0) && (
+                  {portfolioData.recentTransactions.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} align="center">
                         <Typography variant="body2" color="text.secondary" py={2}>

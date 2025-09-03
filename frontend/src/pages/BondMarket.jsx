@@ -220,366 +220,399 @@ const BondMarket = () => {
   const riskLevels = ['All', 'Low', 'Medium', 'High'];
 
   return (
-    <Box p={3} sx={{ bgcolor: '#f8fafc', minHeight: '100vh' }}>
-      {/* CORRECTED Header with High Contrast */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h3" fontWeight="bold" sx={{ color: '#000000 !important', mb: 1 }}>
-            Bond Market
-          </Typography>
-          <Typography variant="h6" sx={{ color: '#374151 !important' }}>
-            Discover and invest in corporate bonds
-          </Typography>
-        </Box>
-        <Button
-          startIcon={<Refresh />}
-          onClick={handleRefresh}
-          disabled={refreshing}
-          variant="contained"
+    <Box sx={{ 
+      bgcolor: '#f8fafc', 
+      minHeight: '100vh',
+      width: '100%',
+      boxSizing: 'border-box',
+      overflow: 'hidden' // Prevent horizontal scroll at root level
+    }}>
+      <Box sx={{
+        maxWidth: 'lg',
+        mx: 'auto',
+        py: 2,
+        boxSizing: 'border-box'
+      }}>
+        {/* Header with High Contrast */}
+        <Box display="flex" 
+             flexDirection={{ xs: 'column', sm: 'row' }}
+             justifyContent="space-between" 
+             alignItems={{ xs: 'flex-start', sm: 'center' }} 
+             mb={3} // Reduced margin
+             gap={2}
         >
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </Button>
-      </Box>
-
-      {/* Market Stats */}
-      {marketStats && (
-        <Grid container spacing={3} mb={4}>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
-                  {marketStats.totalBonds}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
-                  Total Bonds
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
-                  {marketStats.avgYield.toFixed(2)}%
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
-                  Avg Yield
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
-                  {marketStats.totalVolume.toLocaleString()}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
-                  Total Volume
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
-                  {formatCurrency(marketStats.totalMarketCap)}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
-                  Market Cap
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Filters */}
-      <Card sx={{ mb: 3, bgcolor: 'white', boxShadow: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                placeholder="Search bonds..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search sx={{ color: '#374151' }} />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiInputLabel-root': { color: '#374151 !important', fontWeight: 500 },
-                  '& .MuiOutlinedInput-input': { color: '#000000 !important', fontWeight: 500 }
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Sector</InputLabel>
-                <Select
-                  value={sectorFilter}
-                  label="Sector"
-                  onChange={(e) => setSectorFilter(e.target.value)}
-                >
-                  {sectors.map((sector) => (
-                    <MenuItem key={sector} value={sector}>
-                      <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
-                        {sector}
-                      </Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Rating</InputLabel>
-                <Select
-                  value={ratingFilter}
-                  label="Rating"
-                  onChange={(e) => setRatingFilter(e.target.value)}
-                >
-                  {ratings.map((rating) => (
-                    <MenuItem key={rating} value={rating}>
-                      <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
-                        {rating}
-                      </Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Risk Level</InputLabel>
-                <Select
-                  value={riskFilter}
-                  label="Risk Level"
-                  onChange={(e) => setRiskFilter(e.target.value)}
-                >
-                  {riskLevels.map((risk) => (
-                    <MenuItem key={risk} value={risk}>
-                      <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
-                        {risk}
-                      </Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Bond Listings */}
-      <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-            <Typography variant="h6" sx={{ color: '#000000 !important', fontWeight: 700 }}>
-              Available Bonds ({totalItems})
+          <Box>
+            <Typography variant="h3" fontWeight="bold" sx={{ color: '#000000 !important', mb: 1 }}>
+              Bond Market
             </Typography>
-            <Box display="flex" gap={1}>
-              <Chip 
-                icon={<Sort />} 
-                label={`Sort: ${sortBy} (${sortOrder.toUpperCase()})`} 
-                variant="outlined" 
-                size="small"
-                sx={{ fontWeight: 600 }}
-              />
-            </Box>
+            <Typography variant="h6" sx={{ color: '#374151 !important' }}>
+              Discover and invest in corporate bonds
+            </Typography>
           </Box>
+          <Button
+            startIcon={<Refresh />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            variant="contained"
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
 
-          {loading ? (
-            [...Array(5)].map((_, i) => (
-              <Skeleton key={i} height={80} sx={{ mb: 2 }} />
-            ))
-          ) : (
-            <TableContainer component={Paper} sx={{ boxShadow: 1 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, color: '#000000 !important' }}>Bond</TableCell>
-                    <TableCell 
-                      align="right" 
-                      sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important' }} 
-                      onClick={() => handleSortChange('currentPrice')}
-                    >
-                      Price {sortBy === 'currentPrice' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Change</TableCell>
-                    <TableCell 
-                      align="right" 
-                      sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important' }} 
-                      onClick={() => handleSortChange('currentYield')}
-                    >
-                      Yield {sortBy === 'currentYield' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Rating</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Risk</TableCell>
-                    <TableCell 
-                      align="right" 
-                      sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important' }} 
-                      onClick={() => handleSortChange('volume.today')}
-                    >
-                      Volume {sortBy === 'volume.today' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important' }}>Available</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {bonds.map((bond) => (
-                    <TableRow key={bond.bondId} hover>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-                            {bond.symbol?.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
-                              {bond.name}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: '#374151 !important' }}>
-                              {bond.symbol} • {bond.sector}
+        {/* Market Stats */}
+        {marketStats && (
+          <Grid container spacing={2} mb={3}> {/* Reduced spacing and margin */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}> {/* Reduced padding */}
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                    {marketStats.totalBonds}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                    Total Bonds
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                    {marketStats.avgYield.toFixed(2)}%
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                    Avg Yield
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                    {marketStats.totalVolume.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                    Total Volume
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+                <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: '#000000 !important' }}>
+                    {formatCurrency(marketStats.totalMarketCap)}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: '#374151 !important', fontWeight: 500 }}>
+                    Market Cap
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+
+        {/* Filters */}
+        <Card sx={{ mb: 1, bgcolor: 'white', boxShadow: 3, width: '100%', maxWidth: '100%' }}>
+          <CardContent sx={{ p: 1.5 }}>
+            <Grid container spacing={1} alignItems="center" sx={{ width: '100%', margin: 0 }}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  placeholder="Search bonds..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search sx={{ color: '#374151' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiInputLabel-root': { color: '#374151 !important', fontWeight: 500 },
+                    '& .MuiOutlinedInput-input': { color: '#000000 !important', fontWeight: 500 }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Sector</InputLabel>
+                  <Select
+                    value={sectorFilter}
+                    label="Sector"
+                    onChange={(e) => setSectorFilter(e.target.value)}
+                  >
+                    {sectors.map((sector) => (
+                      <MenuItem key={sector} value={sector}>
+                        <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                          {sector}
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={4} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Rating</InputLabel>
+                  <Select
+                    value={ratingFilter}
+                    label="Rating"
+                    onChange={(e) => setRatingFilter(e.target.value)}
+                  >
+                    {ratings.map((rating) => (
+                      <MenuItem key={rating} value={rating}>
+                        <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                          {rating}
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={4} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Risk Level</InputLabel>
+                  <Select
+                    value={riskFilter}
+                    label="Risk Level"
+                    onChange={(e) => setRiskFilter(e.target.value)}
+                  >
+                    {riskLevels.map((risk) => (
+                      <MenuItem key={risk} value={risk}>
+                        <Typography sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                          {risk}
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* Bond Listings */}
+        <Card sx={{ bgcolor: 'white', boxShadow: 3 }}>
+          <CardContent sx={{ p: 2 }}> {/* Reduced padding */}
+            <Box display="flex" 
+                 flexDirection={{ xs: 'column', sm: 'row' }}
+                 justifyContent="space-between" 
+                 alignItems={{ xs: 'flex-start', sm: 'center' }} 
+                 mb={2} // Reduced margin
+                 gap={2}
+            >
+              <Typography variant="h6" sx={{ color: '#000000 !important', fontWeight: 700 }}>
+                Available Bonds ({totalItems})
+              </Typography>
+              <Box display="flex" gap={1}>
+                <Chip 
+                  icon={<Sort />} 
+                  label={`Sort: ${sortBy} (${sortOrder.toUpperCase()})`} 
+                  variant="outlined" 
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+            </Box>
+
+            {loading ? (
+              [...Array(5)].map((_, i) => (
+                <Skeleton key={i} height={80} sx={{ mb: 2 }} />
+              ))
+            ) : (
+              <TableContainer 
+                component={Paper} 
+                sx={{ 
+                  boxShadow: 1,
+                  width: '100%',
+                  overflowX: 'auto'
+                }}
+              >
+                <Table sx={{ minWidth: 1000 }}> {/* Fixed minimum width */}
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 200 }}>Bond</TableCell>
+                      <TableCell 
+                        align="right" 
+                        sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important', minWidth: 100 }} 
+                        onClick={() => handleSortChange('currentPrice')}
+                      >
+                        Price {sortBy === 'currentPrice' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 120 }}>Change</TableCell>
+                      <TableCell 
+                        align="right" 
+                        sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important', minWidth: 80 }} 
+                        onClick={() => handleSortChange('currentYield')}
+                      >
+                        Yield {sortBy === 'currentYield' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 80 }}>Rating</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 80 }}>Risk</TableCell>
+                      <TableCell 
+                        align="right" 
+                        sx={{ cursor: 'pointer', fontWeight: 700, color: '#000000 !important', minWidth: 100 }} 
+                        onClick={() => handleSortChange('volume.today')}
+                      >
+                        Volume {sortBy === 'volume.today' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 120 }}>Available</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: '#000000 !important', minWidth: 160 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {bonds.map((bond) => (
+                      <TableRow key={bond.bondId} hover>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={2}>
+                            <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+                              {bond.symbol?.charAt(0)}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
+                                {bond.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#374151 !important' }}>
+                                {bond.symbol} • {bond.sector}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
+                            {formatCurrency(bond.currentPrice)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.5}>
+                            {bond.priceChange?.absolute >= 0 ? 
+                              <TrendingUp color="success" fontSize="small" /> :
+                              <TrendingDown color="error" fontSize="small" />
+                            }
+                            <Typography 
+                              variant="body2"
+                              sx={{ 
+                                color: bond.priceChange?.absolute >= 0 ? '#15803d !important' : '#dc2626 !important',
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {bond.priceChange?.absolute >= 0 ? '+' : ''}
+                              {bond.priceChange?.absolute?.toFixed(2)} 
+                              ({bond.priceChange?.percentage?.toFixed(2)}%)
                             </Typography>
                           </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
-                          {formatCurrency(bond.currentPrice)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box display="flex" alignItems="center" justifyContent="flex-end" gap={0.5}>
-                          {bond.priceChange?.absolute >= 0 ? 
-                            <TrendingUp color="success" fontSize="small" /> :
-                            <TrendingDown color="error" fontSize="small" />
-                          }
-                          <Typography 
-                            variant="body2"
-                            sx={{ 
-                              color: bond.priceChange?.absolute >= 0 ? '#15803d !important' : '#dc2626 !important',
-                              fontWeight: 600
-                            }}
-                          >
-                            {bond.priceChange?.absolute >= 0 ? '+' : ''}
-                            {bond.priceChange?.absolute?.toFixed(2)} 
-                            ({bond.priceChange?.percentage?.toFixed(2)}%)
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
+                            {bond.currentYield?.toFixed(2)}%
                           </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body1" fontWeight="medium" sx={{ color: '#000000 !important' }}>
-                          {bond.currentYield?.toFixed(2)}%
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip 
-                          label={bond.rating?.value} 
-                          size="small" 
-                          color="primary" 
-                          variant="filled"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip 
-                          label={bond.riskLevel} 
-                          size="small" 
-                          color={getRiskColor(bond.riskLevel)} 
-                          variant="filled"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" sx={{ color: '#000000 !important', fontWeight: 500 }}>
-                          {bond.volume?.today?.toLocaleString() || 0}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box>
-                          <Typography variant="body2" sx={{ color: '#000000 !important', fontWeight: 500 }}>
-                            {bond.availableTokens?.toLocaleString() || 0}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={bond.totalTokens ? (1 - (bond.availableTokens / bond.totalTokens)) * 100 : 0}
-                            sx={{ width: 60, height: 4, mt: 0.5 }}
-                          />
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box display="flex" gap={1} justifyContent="center">
-                          <Tooltip title={watchlist.includes(bond.bondId) ? 'Remove from watchlist' : 'Add to watchlist'}>
-                            <IconButton
-                              size="small"
-                              onClick={() => toggleWatchlist(bond.bondId)}
-                            >
-                              {watchlist.includes(bond.bondId) ? 
-                                <Star sx={{ color: '#f59e0b' }} /> : 
-                                <StarBorder />
-                              }
-                            </IconButton>
-                          </Tooltip>
-                          
-                          <Tooltip title="View details">
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/bonds/${bond.bondId}`)}
-                            >
-                              <Info />
-                            </IconButton>
-                          </Tooltip>
-
-                          <Button
-                            size="small"
-                            variant="contained"
-                            startIcon={<ShoppingCart />}
-                            onClick={() => handleBuyClick(bond)}
-                            disabled={!bond.availableTokens || bond.availableTokens === 0}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip 
+                            label={bond.rating?.value} 
+                            size="small" 
+                            color="primary" 
+                            variant="filled"
                             sx={{ fontWeight: 600 }}
-                          >
-                            Buy
-                          </Button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip 
+                            label={bond.riskLevel} 
+                            size="small" 
+                            color={getRiskColor(bond.riskLevel)} 
+                            variant="filled"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                            {bond.volume?.today?.toLocaleString() || 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box>
+                            <Typography variant="body2" sx={{ color: '#000000 !important', fontWeight: 500 }}>
+                              {bond.availableTokens?.toLocaleString() || 0}
+                            </Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={bond.totalTokens ? (1 - (bond.availableTokens / bond.totalTokens)) * 100 : 0}
+                              sx={{ width: 60, height: 4, mt: 0.5 }}
+                            />
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box display="flex" gap={0.5} justifyContent="center" flexWrap="nowrap">
+                            <Tooltip title={watchlist.includes(bond.bondId) ? 'Remove from watchlist' : 'Add to watchlist'}>
+                              <IconButton
+                                size="small"
+                                onClick={() => toggleWatchlist(bond.bondId)}
+                              >
+                                {watchlist.includes(bond.bondId) ? 
+                                  <Star sx={{ color: '#f59e0b' }} /> : 
+                                  <StarBorder />
+                                }
+                              </IconButton>
+                            </Tooltip>
+                            
+                            <Tooltip title="View details">
+                              <IconButton
+                                size="small"
+                                onClick={() => navigate(`/bonds/${bond.bondId}`)}
+                              >
+                                <Info />
+                              </IconButton>
+                            </Tooltip>
 
-                  {!loading && bonds.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={9} align="center">
-                        <Typography variant="body2" sx={{ color: '#374151 !important', py: 4 }}>
-                          No bonds found matching your criteria. Try adjusting your filters.
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<ShoppingCart />}
+                              onClick={() => handleBuyClick(bond)}
+                              disabled={!bond.availableTokens || bond.availableTokens === 0}
+                              sx={{ fontWeight: 600, fontSize: '0.75rem', px: 1 }}
+                            >
+                              Buy
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={3}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={(e, newPage) => setPage(newPage)}
-                color="primary"
-                size="large"
-              />
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+                    {!loading && bonds.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={9} align="center">
+                          <Typography variant="body2" sx={{ color: '#374151 !important', py: 4 }}>
+                            No bonds found matching your criteria. Try adjusting your filters.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(e, newPage) => setPage(newPage)}
+                  color="primary"
+                  size="large"
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 };

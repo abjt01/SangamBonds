@@ -19,6 +19,7 @@ import {
   Logout
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
@@ -47,12 +48,12 @@ const Navbar = ({ onMenuClick }) => {
   };
 
   return (
-    <AppBar 
-      position="fixed" 
-      sx={{ 
+    <AppBar
+      position="fixed"
+      sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        background: 'linear-gradient(135deg, #1e40af 0%, #3730a3 100%)',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.08)',
       }}
     >
       <Toolbar>
@@ -61,52 +62,47 @@ const Navbar = ({ onMenuClick }) => {
           aria-label="open drawer"
           onClick={onMenuClick}
           edge="start"
-          sx={{ mr: 2 }}
+          sx={{ 
+            mr: 2,
+            color: '#374151'
+          }}
         >
           <MenuIcon />
         </IconButton>
-
-        <Typography 
-          variant="h6" 
-          noWrap 
-          component="div" 
-          sx={{ 
-            flexGrow: 1,
-            color: '#ffffff !important',
-            fontWeight: 700,
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          SangamBonds
-        </Typography>
-
+        <Box sx={{ flexGrow: 1 }}>
+          <Link to="/dashboard">
+            <img 
+              src="/logo.png" 
+              alt="SangamBonds Logo"
+              style={{
+                height: '32px',
+                width: 'auto',
+                cursor: 'pointer',
+              }}
+            />
+          </Link>
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Notifications */}
           <IconButton
             color="inherit"
             onClick={handleNotificationClick}
-            sx={{ color: '#ffffff' }}
+            sx={{ color: '#374151' }}
           >
             <Badge badgeContent={3} color="error">
               <Notifications />
             </Badge>
           </IconButton>
-
-          {/* Welcome Message */}
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              mr: 2, 
+          <Typography
+            variant="body1"
+            sx={{
+              mr: 2,
               display: { xs: 'none', md: 'block' },
-              color: '#ffffff !important',
+              color: '#1f2937',
               fontWeight: 600,
-              textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
             }}
           >
             Welcome back, {user?.name || 'User'}!
           </Typography>
-
-          {/* Profile Avatar */}
           <IconButton
             size="large"
             aria-label="account of current user"
@@ -115,11 +111,11 @@ const Navbar = ({ onMenuClick }) => {
             onClick={handleProfileMenuOpen}
             color="inherit"
           >
-            <Avatar 
-              sx={{ 
-                width: 32, 
-                height: 32, 
-                bgcolor: 'rgba(255, 255, 255, 0.2)',
+            <Avatar
+              sx={{
+                width: 32,
+                height: 32,
+                bgcolor: '#3b82f6',
                 color: '#ffffff',
                 fontWeight: 600
               }}
@@ -128,8 +124,6 @@ const Navbar = ({ onMenuClick }) => {
             </Avatar>
           </IconButton>
         </Box>
-
-        {/* Profile Menu */}
         <Menu
           anchorEl={anchorEl}
           id="account-menu"
@@ -188,8 +182,6 @@ const Navbar = ({ onMenuClick }) => {
             </Typography>
           </MenuItem>
         </Menu>
-
-        {/* Notifications Menu */}
         <Menu
           anchorEl={notificationAnchor}
           open={Boolean(notificationAnchor)}

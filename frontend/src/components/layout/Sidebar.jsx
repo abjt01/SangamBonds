@@ -10,7 +10,8 @@ import {
   Typography,
   Divider,
   Avatar,
-  Chip
+  Chip,
+  Toolbar
 } from '@mui/material';
 import {
   Dashboard,
@@ -48,7 +49,10 @@ const Sidebar = ({ open, onClose }) => {
   const isActive = (path) => location.pathname === path;
 
   const drawer = (
-    <Box sx={{ overflow: 'auto', height: '100%', bgcolor: '#ffffff' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#ffffff' }}>
+      {/* Spacer to account for header */}
+      <Toolbar />
+      
       {/* User Profile Section */}
       <Box sx={{ p: 3, bgcolor: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
         <Box display="flex" alignItems="center" gap={2}>
@@ -58,16 +62,36 @@ const Sidebar = ({ open, onClose }) => {
               height: 48, 
               bgcolor: 'primary.main',
               color: '#ffffff',
-              fontWeight: 700
+              fontWeight: 700,
+              flexShrink: 0
             }}
           >
             {user?.name?.charAt(0)?.toUpperCase() || 'U'}
           </Avatar>
-          <Box flexGrow={1}>
-            <Typography variant="h6" sx={{ color: '#000000 !important', fontWeight: 700 }}>
+          <Box flexGrow={1} sx={{ minWidth: 0, overflow: 'hidden' }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                color: '#000000 !important', 
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
               {user?.name || 'User'}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#374151 !important' }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: '#374151 !important',
+                display: 'block',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.4
+              }}
+            >
               {user?.email || 'user@example.com'}
             </Typography>
             <Box mt={1}>
@@ -93,111 +117,110 @@ const Sidebar = ({ open, onClose }) => {
         </Typography>
       </Box>
 
-      {/* Navigation Menu */}
-      <List sx={{ pt: 0 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => handleNavigation(item.path)}
-              sx={{
-                py: 2,
-                px: 3,
-                bgcolor: isActive(item.path) ? '#dbeafe' : 'transparent',
-                borderRight: isActive(item.path) ? '4px solid #3b82f6' : 'none',
-                '&:hover': {
-                  bgcolor: '#f3f4f6',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ 
-                color: isActive(item.path) ? '#3b82f6' : '#374151',
-                minWidth: 40
-              }}>
-                {item.icon}
+      {/* Navigation Menu - Scrollable Area */}
+      <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+        <List sx={{ pt: 0 }}>
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                onClick={() => handleNavigation(item.path)}
+                sx={{
+                  py: 2,
+                  px: 3,
+                  bgcolor: isActive(item.path) ? '#dbeafe' : 'transparent',
+                  borderRight: isActive(item.path) ? '4px solid #3b82f6' : 'none',
+                  '&:hover': {
+                    bgcolor: '#f3f4f6',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ 
+                  color: isActive(item.path) ? '#3b82f6' : '#374151',
+                  minWidth: 40
+                }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    sx: { 
+                      color: isActive(item.path) ? '#3b82f6 !important' : '#000000 !important',
+                      fontWeight: isActive(item.path) ? 700 : 500,
+                      fontSize: '14px'
+                    }
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Additional Menu Items */}
+        <List>
+          <ListItem disablePadding>
+            <ListItemButton sx={{ py: 2, px: 3 }}>
+              <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
+                <Analytics />
               </ListItemIcon>
               <ListItemText 
-                primary={item.text}
+                primary="Analytics"
                 primaryTypographyProps={{
                   sx: { 
-                    color: isActive(item.path) ? '#3b82f6 !important' : '#000000 !important',
-                    fontWeight: isActive(item.path) ? 700 : 500,
+                    color: '#000000 !important',
+                    fontWeight: 500,
                     fontSize: '14px'
                   }
                 }}
               />
             </ListItemButton>
           </ListItem>
-        ))}
-      </List>
+          
+          <ListItem disablePadding>
+            <ListItemButton sx={{ py: 2, px: 3 }}>
+              <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
+                <Settings />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Settings"
+                primaryTypographyProps={{
+                  sx: { 
+                    color: '#000000 !important',
+                    fontWeight: 500,
+                    fontSize: '14px'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
 
-      <Divider sx={{ my: 2 }} />
+          <ListItem disablePadding>
+            <ListItemButton sx={{ py: 2, px: 3 }}>
+              <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
+                <Help />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Help & Support"
+                primaryTypographyProps={{
+                  sx: { 
+                    color: '#000000 !important',
+                    fontWeight: 500,
+                    fontSize: '14px'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
 
-      {/* Additional Menu Items */}
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton sx={{ py: 2, px: 3 }}>
-            <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
-              <Analytics />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Analytics"
-              primaryTypographyProps={{
-                sx: { 
-                  color: '#000000 !important',
-                  fontWeight: 500,
-                  fontSize: '14px'
-                }
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-        
-        <ListItem disablePadding>
-          <ListItemButton sx={{ py: 2, px: 3 }}>
-            <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
-              <Settings />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Settings"
-              primaryTypographyProps={{
-                sx: { 
-                  color: '#000000 !important',
-                  fontWeight: 500,
-                  fontSize: '14px'
-                }
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-
-        <ListItem disablePadding>
-          <ListItemButton sx={{ py: 2, px: 3 }}>
-            <ListItemIcon sx={{ color: '#374151', minWidth: 40 }}>
-              <Help />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Help & Support"
-              primaryTypographyProps={{
-                sx: { 
-                  color: '#000000 !important',
-                  fontWeight: 500,
-                  fontSize: '14px'
-                }
-              }}
-            />
-          </ListItemButton>
-        </ListItem>
-      </List>
-
-      {/* Footer */}
+      {/* Footer - Fixed at bottom */}
       <Box sx={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
         p: 2, 
         bgcolor: '#f8fafc',
-        borderTop: '1px solid #e5e7eb'
+        borderTop: '1px solid #e5e7eb',
+        mt: 'auto'
       }}>
         <Typography variant="caption" sx={{ color: '#374151 !important', textAlign: 'center', display: 'block' }}>
           SangamBonds v2.0
@@ -209,10 +232,48 @@ const Sidebar = ({ open, onClose }) => {
     </Box>
   );
 
+  const collapsedDrawer = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#ffffff' }}>
+      {/* Spacer to account for header */}
+      <Toolbar />
+      
+      {/* Navigation Menu for Collapsed State */}
+      <Box sx={{ flexGrow: 1, overflow: 'auto', pt: 2 }}>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                onClick={() => handleNavigation(item.path)}
+                sx={{
+                  py: 2,
+                  px: 2,
+                  justifyContent: 'center',
+                  bgcolor: isActive(item.path) ? '#dbeafe' : 'transparent',
+                  borderRight: isActive(item.path) ? '4px solid #3b82f6' : 'none',
+                  '&:hover': {
+                    bgcolor: '#f3f4f6',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ 
+                  color: isActive(item.path) ? '#3b82f6' : '#374151',
+                  minWidth: 'auto',
+                  justifyContent: 'center'
+                }}>
+                  {item.icon}
+                </ListItemIcon>
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    </Box>
+  );
+
   return (
     <Box
       component="nav"
-      sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      sx={{ width: { md: open ? drawerWidth : 60 }, flexShrink: { md: 0 }, transition: 'width 0.3s ease' }}
     >
       {/* Mobile drawer */}
       <Drawer
@@ -228,7 +289,8 @@ const Sidebar = ({ open, onClose }) => {
             boxSizing: 'border-box', 
             width: drawerWidth,
             bgcolor: '#ffffff',
-            boxShadow: '4px 0 6px -1px rgba(0, 0, 0, 0.1)'
+            boxShadow: '4px 0 6px -1px rgba(0, 0, 0, 0.1)',
+            zIndex: (theme) => theme.zIndex.drawer
           },
         }}
       >
@@ -246,43 +308,13 @@ const Sidebar = ({ open, onClose }) => {
             transition: 'width 0.3s ease',
             bgcolor: '#ffffff',
             boxShadow: '4px 0 6px -1px rgba(0, 0, 0, 0.1)',
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            zIndex: (theme) => theme.zIndex.drawer
           },
         }}
         open
       >
-        {open && drawer}
-        {!open && (
-          <Box sx={{ overflow: 'auto', height: '100%', bgcolor: '#ffffff', pt: 10 }}>
-            <List>
-              {menuItems.map((item) => (
-                <ListItem key={item.text} disablePadding>
-                  <ListItemButton
-                    onClick={() => handleNavigation(item.path)}
-                    sx={{
-                      py: 2,
-                      px: 2,
-                      justifyContent: 'center',
-                      bgcolor: isActive(item.path) ? '#dbeafe' : 'transparent',
-                      borderRight: isActive(item.path) ? '4px solid #3b82f6' : 'none',
-                      '&:hover': {
-                        bgcolor: '#f3f4f6',
-                      },
-                    }}
-                  >
-                    <ListItemIcon sx={{ 
-                      color: isActive(item.path) ? '#3b82f6' : '#374151',
-                      minWidth: 'auto',
-                      justifyContent: 'center'
-                    }}>
-                      {item.icon}
-                    </ListItemIcon>
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        )}
+        {open ? drawer : collapsedDrawer}
       </Drawer>
     </Box>
   );
