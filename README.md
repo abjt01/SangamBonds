@@ -1,6 +1,6 @@
 # 🚀 SangamBonds
 
-Welcome to **SangamBonds**, a cutting-edge digital platform democratizing India's corporate bond market through **fractional trading**! 💸📈
+Welcome to **SangamBonds**, a cutting-edge digital platform democratizing India's corporate bond market through **fractional trading**!
 
 ---
 
